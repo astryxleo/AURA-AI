@@ -121,6 +121,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   const [cloudLoaded, setCloudLoaded] = useState(false);
   const [cloudRestoreFailed, setCloudRestoreFailed] = useState(false);
   const cloudWriteQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const cloudSyncVersionRef = useRef(0);
   const [cloudSync, setCloudSync] = useState<"loading" | "saving" | "saved" | "local" | "error">("loading");
   const [cloudRetryToken, setCloudRetryToken] = useState(0);
   const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
@@ -246,6 +247,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   useEffect(() => {
     // Never push a stale browser cache after cloud restore failed; wait for Retry sync.
     if (!cloudLoaded || cloudRestoreFailed || !supabase || !chats.length) return;
+    const syncVersion = ++cloudSyncVersionRef.current;
     setCloudSync("saving");
     const rows = chats.map((chat) => ({
       id: chat.id,
@@ -261,10 +263,10 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
     });
     cloudWriteQueueRef.current = queuedSave;
     void queuedSave.then(() => {
-      setCloudSync("saved");
+      if (cloudSyncVersionRef.current === syncVersion) setCloudSync("saved");
     }).catch((cloudError: unknown) => {
       console.warn("AURA cloud chat save failed:", cloudError);
-      setCloudSync("error");
+      if (cloudSyncVersionRef.current === syncVersion) setCloudSync("error");
     });
   }, [chats, cloudLoaded, cloudRestoreFailed, userId]);
 
