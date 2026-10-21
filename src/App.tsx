@@ -374,8 +374,21 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
         };
       });
       if (!imported.length) throw new Error("This backup doesn't contain any conversations.");
+      // A malformed or hand-edited backup can repeat conversation IDs.
+      // Keep every imported conversation by assigning a fresh ID to later duplicates.
+      const seenImportedIds = new Set<string>();
+      const deduplicatedImported = imported.map((chat) => {
+        if (!seenImportedIds.has(chat.id)) {
+          seenImportedIds.add(chat.id);
+          return chat;
+        }
+        let id = newId();
+        while (seenImportedIds.has(id)) id = newId();
+        seenImportedIds.add(id);
+        return { ...chat, id };
+      });
       const currentById = new Map(chats.map((chat) => [chat.id, chat]));
-      const safeImported = imported.map((chat) => {
+      const safeImported = deduplicatedImported.map((chat) => {
         const existing = currentById.get(chat.id);
         return existing && JSON.stringify(chat.messages) !== JSON.stringify(existing.messages) && chat.updatedAt <= existing.updatedAt
           ? { ...chat, id: newId() }
