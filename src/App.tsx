@@ -203,6 +203,17 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
     const knowledgeSaved = saveJson(knowledgeKey, knowledgeDocs);
     setLocalSaveWarning(!(chatSaved && pinsSaved && settingsSaved && knowledgeSaved));
   }, [chats, cloudLoaded, chatKey, pinnedChatIds, userId, settingsKey, settings, knowledgeKey, knowledgeDocs]);
+  // Once restore is complete, remove pins that no longer point to a saved conversation.
+  // Waiting for cloudLoaded avoids pruning valid cloud pins while remote chats are still loading.
+  useEffect(() => {
+    if (!cloudLoaded) return;
+    const validChatIds = new Set(chats.map((chat) => chat.id));
+    setPinnedChatIds((current) => {
+      const cleaned = current.filter((id) => validChatIds.has(id));
+      return cleaned.length === current.length ? current : cleaned;
+    });
+  }, [chats, cloudLoaded]);
+
   useEffect(() => { if (!activeId && chats[0]) setActiveId(chats[0].id); }, [activeId, chats]);
 
   useEffect(() => {
