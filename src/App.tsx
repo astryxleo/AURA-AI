@@ -305,20 +305,22 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
         };
       });
       if (!imported.length) throw new Error("This backup doesn't contain any conversations.");
+      const currentById = new Map(chats.map((chat) => [chat.id, chat]));
+      const safeImported = imported.map((chat) => {
+        const existing = currentById.get(chat.id);
+        return existing && JSON.stringify(chat.messages) !== JSON.stringify(existing.messages) && chat.updatedAt <= existing.updatedAt
+          ? { ...chat, id: newId() }
+          : chat;
+      });
       setChats((current) => {
         const merged = new Map(current.map((chat) => [chat.id, chat]));
-        for (const chat of imported) {
+        for (const chat of safeImported) {
           const existing = merged.get(chat.id);
-          if (!existing) merged.set(chat.id, chat);
-          else if (chat.updatedAt > existing.updatedAt) merged.set(chat.id, chat);
-          else if (JSON.stringify(chat.messages) !== JSON.stringify(existing.messages)) {
-            const copy = { ...chat, id: newId() };
-            merged.set(copy.id, copy);
-          }
+          if (!existing || chat.updatedAt > existing.updatedAt) merged.set(chat.id, chat);
         }
         return [...merged.values()].sort((left, right) => right.updatedAt - left.updatedAt);
       });
-      setActiveId(imported[0].id);
+      setActiveId(safeImported[0].id);
       setChatSearch("");
       setSidebarOpen(false);
       setError("");
