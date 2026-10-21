@@ -78,3 +78,6 @@ body { overflow: hidden; }
 
 /* Per-message actions: subtle controls that stay usable on touch screens. */
 .message-actions{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:9px;opacity:.78;transition:opacity .16s ease}.message-row:hover .message-actions,.message-row:focus-within .message-actions{opacity:1}.message-actions button{display:inline-flex;align-items:center;gap:5px;padding:5px 7px;border:1px solid #2b2c37;border-radius:6px;background:#111219;color:#9292a5;font-size:9px;line-height:1.2;transition:background .16s,border-color .16s,color .16s}.message-actions button:hover:not(:disabled){background:#211d2d;border-color:#51446e;color:#e2d9ff}.message-actions button:focus-visible{outline:2px solid #b6a0ff;outline-offset:2px}.message-actions button:disabled{opacity:.4;cursor:not-allowed}.message-actions svg{color:#b6a0ff}@media(max-width:680px){.message-actions{opacity:1}.message-actions button{min-height:30px;padding:6px 8px}}
+
+/* Message timestamps */
+.message-label{display:flex;align-items:center;gap:9px}.message-label time{font:9px var(--sans,Inter,sans-serif);letter-spacing:0;color:#666879;font-weight:400}
