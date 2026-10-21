@@ -72,6 +72,12 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [connection, setConnection] = useState<"unknown" | "online" | "offline">("unknown");
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input) return;
+    input.style.height = "auto";
+    input.style.height = `${Math.min(input.scrollHeight, 180)}px`;
+  }, [draft]);
   const activeChat = chats.find((chat) => chat.id === activeId) ?? chats[0];
   const hasMessages = Boolean(activeChat?.messages.length);
 
@@ -159,7 +165,7 @@ export default function App() {
         throw new Error("That message couldn't be processed. Please try again.");
       }
       const answer = data.message?.content?.trim();
-      if (!answer) throw new Error("The model returned an empty response. Check the selected model in Settings.");
+      if (!answer) throw new Error("AURA couldn’t generate a reply just now. Please try again.");
       const assistantMessage: Message = { id: newId(), role: "assistant", content: answer, createdAt: Date.now() };
       setRevealedChars(0);
       setStreamingMessageId(assistantMessage.id);
