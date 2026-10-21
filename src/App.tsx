@@ -78,6 +78,16 @@ function loadJson<T,>(key: string, fallback: T): T {
   try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) as T : fallback; } catch { return fallback; }
 }
 
+function saveJson(key: string, value: unknown): boolean {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch (error) {
+    console.warn("AURA could not save browser data:", error);
+    return false;
+  }
+}
+
 function normalizeChat(value: unknown): Chat | null {
   if (!value || typeof value !== "object") return null;
   const candidate = value as Partial<Chat>;
@@ -182,10 +192,10 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
     conversation.scrollTo({ top: conversation.scrollHeight, behavior: "smooth" });
   }, [activeId, activeChat?.messages.length, busy, streamingMessageId]);
 
-  useEffect(() => { if (cloudLoaded) localStorage.setItem(chatKey, JSON.stringify(chats)); }, [chats, cloudLoaded, chatKey]);
-  useEffect(() => { localStorage.setItem("aura.pinned-chats.v1." + userId, JSON.stringify(pinnedChatIds)); }, [pinnedChatIds, userId]);
-  useEffect(() => { localStorage.setItem(settingsKey, JSON.stringify(settings)); }, [settings, settingsKey]);
-  useEffect(() => { localStorage.setItem(knowledgeKey, JSON.stringify(knowledgeDocs)); }, [knowledgeDocs, knowledgeKey]);
+  useEffect(() => { if (cloudLoaded) saveJson(chatKey, chats); }, [chats, cloudLoaded, chatKey]);
+  useEffect(() => { saveJson("aura.pinned-chats.v1." + userId, pinnedChatIds); }, [pinnedChatIds, userId]);
+  useEffect(() => { saveJson(settingsKey, settings); }, [settings, settingsKey]);
+  useEffect(() => { saveJson(knowledgeKey, knowledgeDocs); }, [knowledgeDocs, knowledgeKey]);
   useEffect(() => { if (!activeId && chats[0]) setActiveId(chats[0].id); }, [activeId, chats]);
 
   useEffect(() => {
@@ -309,7 +319,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
     setError("");
   }
 
-  async function importChats(file: File | undefined) {
+  async async function importChats(file: File | undefined) {
     if (!file) return;
     setError("");
     try {
