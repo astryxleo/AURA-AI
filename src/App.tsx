@@ -358,6 +358,43 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
       : chat));
   }
 
+  async function copyMessage(content: string) {
+    try {
+      await navigator.clipboard.writeText(content);
+      setError("");
+    } catch {
+      setError("Couldn't copy automatically. Select the message text and copy it manually.");
+    }
+  }
+
+  function editUserMessage(messageId: string) {
+    if (!activeChat || busy) return;
+    const index = activeChat.messages.findIndex((message) => message.id === messageId && message.role === "user");
+    if (index < 0) return;
+    const message = activeChat.messages[index];
+    updateActive(activeChat.messages.slice(0, index), activeChat.title);
+    setDraft(message.content);
+    setError("");
+    window.setTimeout(() => inputRef.current?.focus(), 0);
+  }
+
+  function regenerateFromMessage(messageId: string) {
+    if (!activeChat || busy) return;
+    const index = activeChat.messages.findIndex((message) => message.id === messageId && message.role === "assistant");
+    if (index < 0) return;
+    let userIndex = index - 1;
+    while (userIndex >= 0 && activeChat.messages[userIndex].role !== "user") userIndex -= 1;
+    if (userIndex < 0) {
+      setError("Couldn't find the question for this reply.");
+      return;
+    }
+    const prompt = activeChat.messages[userIndex].content;
+    updateActive(activeChat.messages.slice(0, userIndex), activeChat.title);
+    setDraft(prompt);
+    setError("");
+    window.setTimeout(() => inputRef.current?.form?.requestSubmit(), 0);
+  }
+
   async function addKnowledgeFiles(files: FileList | null) {
     if (!files?.length) return;
     setUploadError("");
@@ -601,7 +638,15 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
               {activeChat?.messages.map((message) => (
                 <article className={`message-row ${message.role}`} key={message.id}>
                   <div className={`message-avatar ${message.role}`}>{message.role === "assistant" ? <Sparkles size={17} /> : "Y"}</div>
-                  <div className="message-body"><div className="message-label">{message.role === "assistant" ? "AURA" : "YOU"}</div><div className={`message-content ${message.id === streamingMessageId ? "message-streaming" : ""}`}><MarkdownContent content={message.id === streamingMessageId ? message.content.slice(0, revealedChars) : message.content} /></div></div>
+                  <div className="message-body">
+                    <div className="message-label">{message.role === "assistant" ? "AURA" : "YOU"}</div>
+                    <div className={`message-content ${message.id === streamingMessageId ? "message-streaming" : ""}`}><MarkdownContent content={message.id === streamingMessageId ? message.content.slice(0, revealedChars) : message.content} /></div>
+                    {message.id !== streamingMessageId && <div className="message-actions">
+                      <button type="button" onClick={() => { void copyMessage(message.content); }} aria-label={message.role === "assistant" ? "Copy AURA response" : "Copy your message"} title="Copy message"><FileUp size={13} /> Copy</button>
+                      {message.role === "user" && <button type="button" disabled={busy} onClick={() => editUserMessage(message.id)} title="Edit and resend this message"><Pencil size={13} /> Edit</button>}
+                      {message.role === "assistant" && <button type="button" disabled={busy} onClick={() => regenerateFromMessage(message.id)} title="Regenerate this response"><Sparkles size={13} /> Regenerate</button>}
+                    </div>}
+                  </div>
                 </article>
               ))}
               {busy && <article className="message-row assistant"><div className="message-avatar assistant"><Sparkles size={17} /></div><div className="message-body"><div className="message-label">AURA</div><div className="typing"><span /><span /><span /> <small>Thinking</small></div></div></article>}
