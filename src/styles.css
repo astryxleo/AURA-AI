@@ -65,3 +65,5 @@ body { overflow: hidden; }
 .vault-empty { border:1px dashed #30313c; border-radius:8px; padding:14px; color:#77798b; text-align:center; font-size:10px; }
 .vault-error { border:1px solid #653b42; background:#251619; border-radius:8px; color:#f0b5b8; padding:9px 10px; font-size:10px; line-height:1.5; }
 @media(max-width:680px) { .vault-upload { flex-wrap:wrap; } .vault-upload small { font-size:8px; } }
+
+.account-pill{order:0}.account-signout:hover{border-color:rgba(191,170,255,.5);color:#fff}@media(max-width:760px){.topbar-right .account-pill{max-width:120px}.account-pill span{display:none}.account-signout{padding:7px 8px}}
