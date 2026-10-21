@@ -11,7 +11,7 @@ const CHAT_KEY = "aura.chats.v1";
 const SETTINGS_KEY = "aura.settings.v1";
 const KNOWLEDGE_KEY = "aura.knowledge.v1";
 const MAX_KNOWLEDGE_DOCS = 8;
-const newId = () => Math.random().toString(36).slice(2, 10);
+const newId = () => typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 const starterChat = (): Chat => ({ id: newId(), title: "New conversation", messages: [], updatedAt: Date.now() });
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/legacy/build/pdf.worker.mjs", import.meta.url).toString();
 
@@ -83,6 +83,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   const settingsKey = SETTINGS_KEY + "." + userId;
   const knowledgeKey = KNOWLEDGE_KEY + "." + userId;
   const [cloudLoaded, setCloudLoaded] = useState(false);
+  const [cloudSync, setCloudSync] = useState<"loading" | "saving" | "saved" | "local" | "error">("loading");
   const [chats, setChats] = useState<Chat[]>(() => loadJson<Chat[]>(chatKey, [starterChat()]));
   const [activeId, setActiveId] = useState(() => chats[0]?.id ?? "");
   const [knowledgeDocs, setKnowledgeDocs] = useState<KnowledgeDocument[]>(() => loadJson<KnowledgeDocument[]>(knowledgeKey, []));
@@ -120,7 +121,8 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   useEffect(() => {
     let cancelled = false;
     async function restoreCloudChats() {
-      if (!supabase) { setCloudLoaded(true); return; }
+      if (!supabase) { setCloudSync("local"); setCloudLoaded(true); return; }
+      setCloudSync("loading");
       try {
         const { data, error: cloudError } = await supabase.from("aura_chats")
           .select("id,title,messages,updated_at").eq("user_id", userId).order("updated_at", { ascending: false });
@@ -146,6 +148,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
         }
       } catch (cloudError) {
         console.warn("AURA cloud chat restore failed:", cloudError);
+        if (!cancelled) setCloudSync("error");
       } finally {
         if (!cancelled) setCloudLoaded(true);
       }
@@ -155,7 +158,8 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   }, [userId]);
 
   useEffect(() => {
-    if (!cloudLoaded || !supabase || !chats.length) return;
+    if (!cloudLoaded || !supabase || !chats.length || cloudSync === "error") return;
+    setCloudSync("saving");
     const rows = chats.map((chat) => ({
       id: chat.id,
       user_id: userId,
@@ -164,9 +168,17 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
       updated_at: new Date(chat.updatedAt).toISOString(),
     }));
     void supabase.from("aura_chats").upsert(rows, { onConflict: "id" }).then(({ error: cloudError }) => {
-      if (cloudError) console.warn("AURA cloud chat save failed:", cloudError);
+      if (cloudError) {
+        console.warn("AURA cloud chat save failed:", cloudError);
+        setCloudSync("error");
+      } else {
+        setCloudSync("saved");
+      }
+    }).catch((cloudError: unknown) => {
+      console.warn("AURA cloud chat save failed:", cloudError);
+      setCloudSync("error");
     });
-  }, [chats, cloudLoaded, userId]);
+  }, [chats, cloudLoaded, cloudSync, userId]);
 
 
 
@@ -388,6 +400,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
           </div>
           <div className="topbar-right">
             <div className={`connection ${connection}`}><span className="status-dot" />{connection === "online" ? "Model connected" : connection === "offline" ? "Model offline" : "Cloud AI"}</div>
+            <div className={`connection ${cloudSync === "error" ? "offline" : cloudSync === "saved" ? "online" : "unknown"}`} role="status" aria-live="polite"><span className="status-dot" />{cloudSync === "loading" ? "Loading history" : cloudSync === "saving" ? "Syncing chats" : cloudSync === "saved" ? "Chats synced" : cloudSync === "local" ? "Browser storage" : "Sync issue"}</div>
             <button className="settings-button" onClick={() => setSettingsOpen(true)}><Settings2 size={16} /><span>Settings</span></button>
           </div>
         </header>
