@@ -521,6 +521,17 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
     }
   }
 
+  function retryLastMessage() {
+    if (!activeChat || busy) return;
+    const lastMessage = activeChat.messages[activeChat.messages.length - 1];
+    if (!lastMessage || lastMessage.role !== "user") return;
+    const prompt = lastMessage.content;
+    updateActive(activeChat.messages.slice(0, -1), activeChat.title);
+    setDraft(prompt);
+    setError("");
+    window.setTimeout(() => inputRef.current?.form?.requestSubmit(), 0);
+  }
+
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
@@ -657,7 +668,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
 
         <div className="composer-wrap">
           {!networkOnline && <div className="error-banner" role="status"><span>You are offline. Your existing chats remain available; reconnect before sending new messages.</span></div>}
-          {error && <div className="error-banner"><span>{error}</span><button aria-label="Dismiss error" onClick={() => setError("")}><X size={15} /></button></div>}
+          {error && <div className="error-banner"><span>{error}</span><div className="error-actions">{activeChat?.messages[activeChat.messages.length - 1]?.role === "user" && <button type="button" className="retry-message" disabled={busy} onClick={retryLastMessage}><Zap size={13} /> Retry message</button>}<button aria-label="Dismiss error" onClick={() => setError("")}><X size={15} /></button></div></div>}
           <form className="composer" onSubmit={sendMessage}>
             <textarea ref={inputRef} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={onKeyDown} placeholder="Message AURA... (Enter to send, Shift + Enter for a new line)" rows={1} aria-label="Message AURA" />
             <div className="composer-bottom"><div className="composer-hint"><span className="composer-spark"><Sparkles size={13} /></span><span>Curious by design.</span></div><button className="send-button" type="submit" disabled={!draft.trim() || busy} aria-label="Send message">{busy ? <span className="send-loader" /> : <Send size={17} />}<span>Send</span></button></div>
