@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent } from "react";
 import { BookOpen, Check, ChevronDown, Cpu, FileText, Menu, MessageSquare, Plus, Send, Settings2, Sparkles, Trash2, Upload, X, Zap } from "lucide-react";
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 
 type Message = { id: string; role: "user" | "assistant"; content: string; createdAt: number };
 type Chat = { id: string; title: string; messages: Message[]; updatedAt: number };
@@ -11,6 +12,25 @@ const KNOWLEDGE_KEY = "aura.knowledge.v1";
 const MAX_KNOWLEDGE_DOCS = 8;
 const newId = () => Math.random().toString(36).slice(2, 10);
 const starterChat = (): Chat => ({ id: newId(), title: "New conversation", messages: [], updatedAt: Date.now() });
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/legacy/build/pdf.worker.mjs", import.meta.url).toString();
+
+async function extractPdfText(file: File): Promise<string> {
+  const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+  const pages: string[] = [];
+  let total = 0;
+  for (let pageNumber = 1; pageNumber <= Math.min(pdf.numPages, 80) && total < 20000; pageNumber += 1) {
+    const page = await pdf.getPage(pageNumber);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items.map((item) => "str" in item ? item.str : "").join(" ").replace(/\s+/g, " ").trim();
+    if (pageText) {
+      const clipped = pageText.slice(0, 20000 - total);
+      pages.push("[Page " + pageNumber + "] " + clipped);
+      total += clipped.length;
+    }
+  }
+  if (!pages.length) throw new Error("No selectable text found; scanned PDFs need OCR, which is not supported yet.");
+  return pages.join("\n\n");
+}
 
 type Settings = { model: string; personality: string; knowledge: string };
 const defaultSettings: Settings = {
@@ -135,12 +155,13 @@ export default function App() {
     const nextDocs = [...knowledgeDocs];
     for (const file of Array.from(files)) {
       const extension = file.name.split(".").pop()?.toLowerCase();
-      if (!["txt", "md", "csv", "json"].includes(extension ?? "")) {
-        setUploadError("Use .txt, .md, .csv, or .json files. PDF and Word files aren't supported yet.");
+      if (!["txt", "md", "csv", "json", "pdf"].includes(extension ?? "")) {
+        setUploadError("Use .txt, .md, .csv, .json, or text-based PDF files. Word files are not supported yet.");
         continue;
       }
-      if (file.size > 100 * 1024) {
-        setUploadError(file.name + " is too large. Each file must be under 100 KB.");
+      const isPdf = extension === "pdf";
+      if (file.size > (isPdf ? 5 * 1024 * 1024 : 100 * 1024)) {
+        setUploadError(file.name + (isPdf ? " is too large. PDFs must be under 5 MB." : " is too large. Each text file must be under 100 KB."));
         continue;
       }
       if (nextDocs.length >= MAX_KNOWLEDGE_DOCS) {
@@ -148,7 +169,7 @@ export default function App() {
         break;
       }
       try {
-        const content = (await file.text()).replace(/\r\n/g, "\n").trim();
+        const content = (isPdf ? await extractPdfText(file) : await file.text()).replace(/\r\n/g, "\n").trim();
         if (!content) { setUploadError(file.name + " is empty or could not be read."); continue; }
         const usedChars = nextDocs.reduce((sum, doc) => sum + doc.content.length, 0);
         const remainingChars = Math.max(0, 100000 - usedChars);
@@ -355,11 +376,11 @@ export default function App() {
               <label className="field-label" htmlFor="personality">Personality instructions</label><textarea id="personality" className="field-textarea" rows={5} value={settings.personality} onChange={(event) => setSettings((old) => ({ ...old, personality: event.target.value }))} placeholder="Tell AURA how to behave..." />
               <label className="field-label" htmlFor="knowledge">Personal knowledge notes</label><textarea id="knowledge" className="field-textarea" rows={5} value={settings.knowledge} onChange={(event) => setSettings((old) => ({ ...old, knowledge: event.target.value }))} placeholder="Add your goals, preferences, project context, or notes that AURA should use..." />
               <div className="vault-heading"><div><span className="field-label">Knowledge Vault</span><p className="field-help">Upload notes that AURA can search for relevant context.</p></div><span className="vault-count">{knowledgeDocs.length}/{MAX_KNOWLEDGE_DOCS}</span></div>
-              <input ref={fileInputRef} className="vault-file-input" type="file" accept=".txt,.md,.csv,.json,text/plain,text/markdown,text/csv,application/json" multiple onChange={(event) => { void addKnowledgeFiles(event.target.files); }} aria-label="Upload knowledge files" />
-              <button className="vault-upload" type="button" disabled={knowledgeDocs.length >= MAX_KNOWLEDGE_DOCS} onClick={() => fileInputRef.current?.click()}><Upload size={16} /><span>Add documents</span><small>TXT · MD · CSV · JSON</small></button>
+              <input ref={fileInputRef} className="vault-file-input" type="file" accept=".txt,.md,.csv,.json,.pdf,text/plain,text/markdown,text/csv,application/json,application/pdf" multiple onChange={(event) => { void addKnowledgeFiles(event.target.files); }} aria-label="Upload knowledge files" />
+              <button className="vault-upload" type="button" disabled={knowledgeDocs.length >= MAX_KNOWLEDGE_DOCS} onClick={() => fileInputRef.current?.click()}><Upload size={16} /><span>Add documents</span><small>TXT · MD · CSV · JSON · PDF</small></button>
               {uploadError && <div className="vault-error" role="status">{uploadError}</div>}
               {knowledgeDocs.length > 0 ? <div className="vault-list">{knowledgeDocs.map((doc) => <div className="vault-item" key={doc.id}><span className="vault-file-icon"><FileText size={16} /></span><span className="vault-file-copy"><strong>{doc.name}</strong><small>{doc.content.length.toLocaleString()} characters · stored in this browser</small></span><button className="delete-chat vault-delete" type="button" aria-label={"Remove " + doc.name} title="Remove document" onClick={() => removeKnowledgeDocument(doc.id)}><Trash2 size={14} /></button></div>)}</div> : <div className="vault-empty">No documents added yet.</div>}
-              <div className="field-help">Files stay in this browser. AURA selects up to 3 relevant excerpts per question; uploaded files are not sent in full with every message. Text files only for now, max 100 KB each.</div>
+              <div className="field-help">Files stay in this browser. AURA selects up to 3 relevant excerpts per question; uploaded files are not sent in full with every message. Text files max 100 KB; PDFs max 5 MB, 80 pages and 20,000 extracted characters. Scanned PDFs and Word files are not supported.</div>
               <div className="field-help">These notes are added to your prompt when you chat. Keep sensitive information out of local notes on shared computers.</div>
             </div>
             <footer className="modal-footer"><span><Check size={14} /> Saved automatically in this browser</span><button className="primary-button" onClick={() => setSettingsOpen(false)}>Done <Check size={15} /></button></footer>
