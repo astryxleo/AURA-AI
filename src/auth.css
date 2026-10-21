@@ -24,3 +24,5 @@
 .account-pill span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .account-signout{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.035);border-radius:9px;padding:8px 10px;color:#d5d0e4;font-size:11px;cursor:pointer}
 @media(max-width:560px){.auth-card{border-radius:19px}.account-pill{display:none}}
+
+.auth-reset{justify-self:end;border:0;background:none;color:#b9a4ff;font:inherit;font-size:11px;cursor:pointer;padding:0 1px}.auth-reset:hover{text-decoration:underline}.auth-reset:disabled{opacity:.5;cursor:wait}
