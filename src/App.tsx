@@ -127,6 +127,8 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   const [localSaveWarning, setLocalSaveWarning] = useState(false);
   const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
   const [chats, setChats] = useState<Chat[]>(() => loadJson<Chat[]>(chatKey, [starterChat()]));
+  const latestChatsRef = useRef(chats);
+  useEffect(() => { latestChatsRef.current = chats; }, [chats]);
   const [chatSearch, setChatSearch] = useState("");
   const historySearchRef = useRef<HTMLInputElement>(null);
   const chatImportRef = useRef<HTMLInputElement>(null);
@@ -225,7 +227,8 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
           // Merge cloud history with this browser's cache instead of replacing it.
           // This preserves chats that were created offline or before cloud sync was enabled.
           const merged = new Map<string, Chat>();
-          for (const chat of chats) merged.set(chat.id, chat);
+          // Read the latest local state after the network request, not the render-time snapshot.
+          for (const chat of latestChatsRef.current) merged.set(chat.id, chat);
           for (const cloudChat of cloudChats) {
             const localChat = merged.get(cloudChat.id);
             if (!localChat || cloudChat.updatedAt >= localChat.updatedAt) merged.set(cloudChat.id, cloudChat);
