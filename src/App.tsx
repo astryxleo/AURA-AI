@@ -78,6 +78,32 @@ function loadJson<T,>(key: string, fallback: T): T {
   try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) as T : fallback; } catch { return fallback; }
 }
 
+function normalizeChat(value: unknown): Chat | null {
+  if (!value || typeof value !== "object") return null;
+  const candidate = value as Partial<Chat>;
+  if (typeof candidate.id !== "string" || !candidate.id.trim()) return null;
+  if (typeof candidate.title !== "string" || !Array.isArray(candidate.messages)) return null;
+  const messages: Message[] = [];
+  for (const item of candidate.messages) {
+    if (!item || typeof item !== "object") continue;
+    const message = item as Partial<Message>;
+    if (typeof message.id !== "string" || typeof message.content !== "string") continue;
+    if (message.role !== "user" && message.role !== "assistant") continue;
+    messages.push({
+      id: message.id,
+      role: message.role,
+      content: message.content,
+      createdAt: typeof message.createdAt === "number" && Number.isFinite(message.createdAt) ? message.createdAt : Date.now(),
+    });
+  }
+  return {
+    id: candidate.id,
+    title: candidate.title.slice(0, 240),
+    messages,
+    updatedAt: typeof candidate.updatedAt === "number" && Number.isFinite(candidate.updatedAt) ? candidate.updatedAt : Date.now(),
+  };
+}
+
 export default function App({ userId, userEmail, onSignOut }: { userId: string; userEmail: string; onSignOut: () => void }) {
   const chatKey = CHAT_KEY + "." + userId;
   const settingsKey = SETTINGS_KEY + "." + userId;
@@ -173,12 +199,14 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
           .select("id,title,messages,updated_at").eq("user_id", userId).order("updated_at", { ascending: false });
         if (cloudError) throw cloudError;
         if (!cancelled && data?.length) {
-          const cloudChats: Chat[] = data.map((row) => ({
-            id: row.id as string,
-            title: row.title as string,
-            messages: row.messages as Message[],
-            updatedAt: Date.parse(row.updated_at as string) || Date.now(),
-          }));
+          const cloudChats = data
+            .map((row) => normalizeChat({
+              id: row.id,
+              title: row.title,
+              messages: row.messages,
+              updatedAt: Date.parse(row.updated_at as string) || Date.now(),
+            }))
+            .filter((chat): chat is Chat => chat !== null);
           // Merge cloud history with this browser's cache instead of replacing it.
           // This preserves chats that were created offline or before cloud sync was enabled.
           const merged = new Map<string, Chat>();
