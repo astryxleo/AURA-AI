@@ -1,13 +1,13 @@
 # AURA AI
 
-A personal AI workspace built with React, TypeScript and Vite. The first version is designed for GitHub + Vercel, with optional local inference through [Ollama](https://ollama.com/).
+A personal AI workspace built with React, TypeScript and Vite, deployed on Vercel. Visitors use hosted Gemini AI and do not need to install Ollama.
 
 ## Features in this starter
 - Dark, responsive chat workspace
 - Multiple local chat sessions saved in this browser
 - Editable assistant personality instructions
 - Personal knowledge notes injected into prompts
-- Ollama chat API integration
+- Server-side Gemini API integration (the API key stays in Vercel environment variables)
 - No public signup or secret API keys in the frontend
 
 ## Run locally
@@ -26,16 +26,16 @@ Import astryxleo/AURA-AI into Vercel and use the default Vite build settings:
 - Build command: npm run build
 - Output directory: dist
 
-**Important:** a Vercel-hosted website cannot directly reach Ollama running on your own PC for visitors. This first version's Ollama mode is intended for a browser on the same computer as Ollama. A public multi-user AI service needs a server-side API/backend and protected provider credentials, or a separately hosted model endpoint.
+**Important:** hosted AI usage is subject to provider quotas, model availability, and terms. Google's Gemini free tier has usage limits, and prompts sent through the free tier may be used to improve Google's products; check the current terms before sending sensitive data.
 
 ## Security notes
 - Conversations, personality instructions and knowledge notes are stored in this browser's local storage.
 - Do not add private provider API keys to client-side code or VITE_ environment variables.
-- This starter does not yet include cloud accounts, cross-device sync, or a production backend.
+- Chat history and persona notes are still stored in this browser; cloud accounts and cross-device sync are not included yet. The in-memory rate limit is best-effort and is not a substitute for durable production rate limiting.
 
 ## Roadmap
 1. Polish the chat and local-model workflow.
-2. Add secure server-side AI provider integration.
+2. Add durable rate limiting and abuse protection for public traffic.
 3. Add optional Supabase authentication and synced chat history.
 4. Add file-based knowledge ingestion and retrieval.
 5. Add deployment checks and automated tests.
