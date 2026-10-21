@@ -158,7 +158,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   }, [userId]);
 
   useEffect(() => {
-    if (!cloudLoaded || !supabase || !chats.length || cloudSync === "error") return;
+    if (!cloudLoaded || !supabase || !chats.length) return;
     setCloudSync("saving");
     const rows = chats.map((chat) => ({
       id: chat.id,
@@ -178,7 +178,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
       console.warn("AURA cloud chat save failed:", cloudError);
       setCloudSync("error");
     });
-  }, [chats, cloudLoaded, cloudSync, userId]);
+  }, [chats, cloudLoaded, userId]);
 
 
 
