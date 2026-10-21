@@ -352,7 +352,15 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
       if (!parsed || typeof parsed !== "object" || !("chats" in parsed) || !Array.isArray((parsed as { chats: unknown }).chats)) {
         throw new Error("This file doesn't look like an AURA chat backup.");
       }
-      const rawChats = (parsed as { chats: unknown[] }).chats;
+      const backupMetadata = parsed as { format?: unknown; version?: unknown; chats: unknown[] };
+      // Accept older chat exports without metadata, but reject explicitly unsupported formats/versions.
+      if (backupMetadata.format !== undefined && backupMetadata.format !== "aura-chat-backup") {
+        throw new Error("This backup was created by an unsupported format.");
+      }
+      if (backupMetadata.version !== undefined && backupMetadata.version !== 1) {
+        throw new Error("This backup version isn't supported. Export a fresh backup from AURA and try again.");
+      }
+      const rawChats = backupMetadata.chats;
       const imported: Chat[] = rawChats.map((item, index) => {
         if (!item || typeof item !== "object") throw new Error("Backup contains an invalid conversation.");
         const value = item as Partial<Chat>;
