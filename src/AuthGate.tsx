@@ -9,6 +9,8 @@ export default function AuthGate() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [recoveryMode, setRecoveryMode] = useState(false);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
@@ -20,7 +22,8 @@ export default function AuthGate() {
     supabase.auth.getSession().then(({ data }) => {
       if (active) { setSession(data.session); setReady(true); }
     }).catch(() => { if (active) setReady(true); });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
       setSession(nextSession);
       setReady(true);
     });
@@ -74,6 +77,8 @@ export default function AuthGate() {
   if (!ready) return <div className="auth-screen"><div className="auth-card"><div className="auth-logo">✦</div><h1>Waking up AURA</h1><p>Restoring your secure session…</p></div></div>;
 
   if (!supabase) return <div className="auth-screen"><div className="auth-card"><div className="auth-logo">✦</div><div className="auth-kicker">ONE-TIME SETUP</div><h1>Connect your account layer</h1><p>Add these two public frontend environment variables in Vercel, then redeploy. Never add a service-role key here.</p><code>VITE_SUPABASE_URL</code><code>VITE_SUPABASE_PUBLISHABLE_KEY</code><p className="auth-muted">The Supabase project URL and publishable key are available in Project Settings → API Keys.</p></div></div>;
+
+  if (session?.user && recoveryMode) return <div className="auth-screen"><div className="auth-card"><div className="auth-logo">✦</div><div className="auth-kicker">ACCOUNT SECURITY</div><h1>Choose a new password.</h1><p>Use at least 8 characters, then sign in with your updated password.</p><form className="auth-form" onSubmit={async (event) => { event.preventDefault(); if (!supabase) return; setBusy(true); setError(""); setNotice(""); try { const { error: updateError } = await supabase.auth.updateUser({ password: newPassword }); if (updateError) throw updateError; setRecoveryMode(false); setPassword(""); setNewPassword(""); setNotice("Password updated successfully."); } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not update your password."); } finally { setBusy(false); } }}><label>New password<input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" minLength={8} required /></label>{error && <div className="auth-error" role="alert">{error}</div>}{notice && <div className="auth-notice" role="status">{notice}</div>}<button className="auth-submit" type="submit" disabled={busy}>{busy ? "Updating…" : "Update password"} <span>↗</span></button></form></div></div>;
 
   if (session?.user) return <App userId={session.user.id} userEmail={session.user.email ?? ""} onSignOut={signOut} />;
 
