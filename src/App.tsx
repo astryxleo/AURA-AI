@@ -11,7 +11,7 @@ const starterChat = (): Chat => ({ id: newId(), title: "New conversation", messa
 
 type Settings = { model: string; personality: string; knowledge: string };
 const defaultSettings: Settings = {
-  model: "gemini-2.5-flash",
+  model: "gemini-3.8-flash",
   personality: "You are AURA, a thoughtful, capable personal AI. Be warm, clear, honest about uncertainty, and practical. Use headings or bullets when they improve readability.",
   knowledge: "",
 };
@@ -22,7 +22,12 @@ function loadJson<T,>(key: string, fallback: T): T {
 export default function App() {
   const [chats, setChats] = useState<Chat[]>(() => loadJson<Chat[]>(CHAT_KEY, [starterChat()]));
   const [activeId, setActiveId] = useState(() => chats[0]?.id ?? "");
-  const [settings, setSettings] = useState<Settings>(() => ({ ...defaultSettings, ...loadJson<Partial<Settings>>(SETTINGS_KEY, {}) }));
+  const [settings, setSettings] = useState<Settings>(() => {
+    const saved = loadJson<Partial<Settings>>(SETTINGS_KEY, {});
+    // Migrate the old default so existing browser sessions use a currently recommended model.
+    if (saved.model === "gemini-2.5-flash") saved.model = "gemini-3.8-flash";
+    return { ...defaultSettings, ...saved };
+  });
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -76,7 +81,7 @@ export default function App() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: settings.model.trim() || "gemini-2.5-flash",
+          model: settings.model.trim() || "gemini-3.8-flash",
           stream: false,
           messages: [
             { role: "system", content: systemPrompt },
@@ -210,7 +215,7 @@ export default function App() {
           <section className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
             <header className="modal-header"><div><div className="modal-kicker">PERSONALIZE YOUR EXPERIENCE</div><h2 id="settings-title">AURA settings</h2><p>Shape how AURA thinks, responds, and uses your context.</p></div><button className="icon-button" onClick={() => setSettingsOpen(false)} aria-label="Close settings"><X size={19} /></button></header>
             <div className="settings-body">
-              <label className="field-label" htmlFor="model">Cloud AI model</label><input id="model" className="field-input" value={settings.model} onChange={(event) => setSettings((old) => ({ ...old, model: event.target.value }))} placeholder="gemini-2.5-flash" />
+              <label className="field-label" htmlFor="model">Cloud AI model</label><input id="model" className="field-input" value={settings.model} onChange={(event) => setSettings((old) => ({ ...old, model: event.target.value }))} placeholder="gemini-3.8-flash" />
               <div className="field-help">AURA uses a hosted model, so visitors do not need Ollama. Model availability depends on the provider and its usage limits.</div>
               <div className="field-divider" />
               <label className="field-label" htmlFor="personality">Personality instructions</label><textarea id="personality" className="field-textarea" rows={5} value={settings.personality} onChange={(event) => setSettings((old) => ({ ...old, personality: event.target.value }))} placeholder="Tell AURA how to behave..." />
