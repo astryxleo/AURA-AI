@@ -16,37 +16,36 @@ const defaultSettings: Settings = {
   knowledge: "",
 };
 function renderInline(text: string, keyPrefix: string) {
-  const normalized = text.replace(/\\\\([*_\x60#-])/g, "$1");
-  const tokens = normalized.split(/(\\*\\*[^*]+\\*\\*|\\*[^*]+\\*|\x60[^\x60]+\x60)/g).filter(Boolean);
+  const normalized = text.replace(/\\([*_\x60#-])/g, "$1");
+  const tokens = normalized.split(/(\*\*[^*]+\*\*|\*[^*]+\*|\x60[^\x60]+\x60)/g).filter(Boolean);
   return tokens.map((token, index) => {
     const key = keyPrefix + "-" + index;
     if (token.startsWith("**") && token.endsWith("**")) return <strong key={key}>{token.slice(2, -2)}</strong>;
     if (token.startsWith("*") && token.endsWith("*")) return <em key={key}>{token.slice(1, -1)}</em>;
-    if (token.startsWith("`") && token.endsWith("`")) return <code key={key}>{token.slice(1, -1)}</code>;
+    if (token.startsWith("\x60") && token.endsWith("\x60")) return <code key={key}>{token.slice(1, -1)}</code>;
     return token;
   });
 }
 
 function MarkdownContent({ content }: { content: string }) {
-  const normalized = content.replace(/\\\\([*_\x60#-])/g, "$1");
-  const blocks = normalized.split(/\\n{2,}/).filter((block) => block.trim());
+  const normalized = content.replace(/\\([*_\x60#-])/g, "$1");
+  const blocks = normalized.split(/\n{2,}/).filter((block) => block.trim());
   return <div className="markdown-content">{blocks.map((block, index) => {
-    const lines = block.split("\\n");
+    const lines = block.split("\n");
     const key = "block-" + index;
-    if (lines.every((line) => /^\\s*[-*]\\s+/.test(line))) {
-      return <ul key={key}>{lines.map((line, lineIndex) => <li key={key + "-" + lineIndex}>{renderInline(line.replace(/^\\s*[-*]\\s+/, ""), key + "-li-" + lineIndex)}</li>)}</ul>;
+    if (lines.every((line) => /^\s*[-*]\s+/.test(line))) {
+      return <ul key={key}>{lines.map((line, lineIndex) => <li key={key + "-" + lineIndex}>{renderInline(line.replace(/^\s*[-*]\s+/, ""), key + "-li-" + lineIndex)}</li>)}</ul>;
     }
-    if (lines.every((line) => /^\\s*\\d+[.)]\\s+/.test(line))) {
-      return <ol key={key}>{lines.map((line, lineIndex) => <li key={key + "-" + lineIndex}>{renderInline(line.replace(/^\\s*\\d+[.)]\\s+/, ""), key + "-li-" + lineIndex)}</li>)}</ol>;
+    if (lines.every((line) => /^\s*\d+[.)]\s+/.test(line))) {
+      return <ol key={key}>{lines.map((line, lineIndex) => <li key={key + "-" + lineIndex}>{renderInline(line.replace(/^\s*\d+[.)]\s+/, ""), key + "-li-" + lineIndex)}</li>)}</ol>;
     }
-    const heading = lines.length === 1 ? lines[0].match(/^(#{1,3})\\s+(.+)$/) : null;
+    const heading = lines.length === 1 ? lines[0].match(/^(#{1,3})\s+(.+)$/) : null;
     if (heading) {
       const level = heading[1].length;
       if (level === 1) return <h3 key={key}>{renderInline(heading[2], key)}</h3>;
       if (level === 2) return <h4 key={key}>{renderInline(heading[2], key)}</h4>;
       return <h5 key={key}>{renderInline(heading[2], key)}</h5>;
     }
-    if (lines.length === 1 && /^\\x60{3}/.test(lines[0])) return <pre key={key}><code>{lines.slice(1, -1).join("\\n")}</code></pre>;
     return <p key={key}>{lines.map((line, lineIndex) => <span key={key + "-" + lineIndex}>{lineIndex > 0 && <br />}{renderInline(line, key + "-line-" + lineIndex)}</span>)}</p>;
   })}</div>;
 }
