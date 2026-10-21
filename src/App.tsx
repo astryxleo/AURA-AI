@@ -15,6 +15,42 @@ const defaultSettings: Settings = {
   personality: "You are AURA, a thoughtful, capable personal AI. Be warm, clear, honest about uncertainty, and practical. Use headings or bullets when they improve readability.",
   knowledge: "",
 };
+function renderInline(text: string, keyPrefix: string) {
+  const normalized = text.replace(/\\\\([*_\x60#-])/g, "$1");
+  const tokens = normalized.split(/(\\*\\*[^*]+\\*\\*|\\*[^*]+\\*|\x60[^\x60]+\x60)/g).filter(Boolean);
+  return tokens.map((token, index) => {
+    const key = keyPrefix + "-" + index;
+    if (token.startsWith("**") && token.endsWith("**")) return <strong key={key}>{token.slice(2, -2)}</strong>;
+    if (token.startsWith("*") && token.endsWith("*")) return <em key={key}>{token.slice(1, -1)}</em>;
+    if (token.startsWith("`") && token.endsWith("`")) return <code key={key}>{token.slice(1, -1)}</code>;
+    return token;
+  });
+}
+
+function MarkdownContent({ content }: { content: string }) {
+  const normalized = content.replace(/\\\\([*_\x60#-])/g, "$1");
+  const blocks = normalized.split(/\\n{2,}/).filter((block) => block.trim());
+  return <div className="markdown-content">{blocks.map((block, index) => {
+    const lines = block.split("\\n");
+    const key = "block-" + index;
+    if (lines.every((line) => /^\\s*[-*]\\s+/.test(line))) {
+      return <ul key={key}>{lines.map((line, lineIndex) => <li key={key + "-" + lineIndex}>{renderInline(line.replace(/^\\s*[-*]\\s+/, ""), key + "-li-" + lineIndex)}</li>)}</ul>;
+    }
+    if (lines.every((line) => /^\\s*\\d+[.)]\\s+/.test(line))) {
+      return <ol key={key}>{lines.map((line, lineIndex) => <li key={key + "-" + lineIndex}>{renderInline(line.replace(/^\\s*\\d+[.)]\\s+/, ""), key + "-li-" + lineIndex)}</li>)}</ol>;
+    }
+    const heading = lines.length === 1 ? lines[0].match(/^(#{1,3})\\s+(.+)$/) : null;
+    if (heading) {
+      const level = heading[1].length;
+      if (level === 1) return <h3 key={key}>{renderInline(heading[2], key)}</h3>;
+      if (level === 2) return <h4 key={key}>{renderInline(heading[2], key)}</h4>;
+      return <h5 key={key}>{renderInline(heading[2], key)}</h5>;
+    }
+    if (lines.length === 1 && /^\\x60{3}/.test(lines[0])) return <pre key={key}><code>{lines.slice(1, -1).join("\\n")}</code></pre>;
+    return <p key={key}>{lines.map((line, lineIndex) => <span key={key + "-" + lineIndex}>{lineIndex > 0 && <br />}{renderInline(line, key + "-line-" + lineIndex)}</span>)}</p>;
+  })}</div>;
+}
+
 function loadJson<T,>(key: string, fallback: T): T {
   try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) as T : fallback; } catch { return fallback; }
 }
@@ -213,7 +249,7 @@ export default function App() {
               {activeChat?.messages.map((message) => (
                 <article className={`message-row ${message.role}`} key={message.id}>
                   <div className={`message-avatar ${message.role}`}>{message.role === "assistant" ? <Sparkles size={17} /> : "Y"}</div>
-                  <div className="message-body"><div className="message-label">{message.role === "assistant" ? "AURA" : "YOU"}</div><div className={`message-content ${message.id === streamingMessageId ? "message-streaming" : ""}`}>{message.id === streamingMessageId ? message.content.slice(0, revealedChars) : message.content}</div></div>
+                  <div className="message-body"><div className="message-label">{message.role === "assistant" ? "AURA" : "YOU"}</div><div className={`message-content ${message.id === streamingMessageId ? "message-streaming" : ""}`}><MarkdownContent content={message.id === streamingMessageId ? message.content.slice(0, revealedChars) : message.content} /></div></div>
                 </article>
               ))}
               {busy && <article className="message-row assistant"><div className="message-avatar assistant"><Sparkles size={17} /></div><div className="message-body"><div className="message-label">AURA</div><div className="typing"><span /><span /><span /> <small>Thinking</small></div></div></article>}
