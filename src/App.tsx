@@ -90,6 +90,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
   const [chats, setChats] = useState<Chat[]>(() => loadJson<Chat[]>(chatKey, [starterChat()]));
   const [chatSearch, setChatSearch] = useState("");
+  const historySearchRef = useRef<HTMLInputElement>(null);
   const [pinnedChatIds, setPinnedChatIds] = useState<string[]>(() => loadJson<string[]>("aura.pinned-chats.v1." + userId, []));
   const [activeId, setActiveId] = useState(() => chats[0]?.id ?? "");
   const [knowledgeDocs, setKnowledgeDocs] = useState<KnowledgeDocument[]>(() => loadJson<KnowledgeDocument[]>(knowledgeKey, []));
@@ -122,6 +123,22 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
       window.removeEventListener("offline", handleOffline);
     };
   }, []);
+  useEffect(() => {
+    const handleShortcut = (event: globalThis.KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+      if (event.key.toLowerCase() === "k" && !event.shiftKey) {
+        event.preventDefault();
+        createChat();
+      } else if (event.key.toLowerCase() === "f" && event.shiftKey) {
+        event.preventDefault();
+        setSidebarOpen(true);
+        window.setTimeout(() => historySearchRef.current?.focus(), 50);
+      }
+    };
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, []);
+
   useEffect(() => {
     const input = inputRef.current;
     if (!input) return;
@@ -453,7 +470,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
         <button className="nav-item selected" onClick={() => setSidebarOpen(false)}><MessageSquare size={17} /> Chats <span className="nav-count">{chats.length}</span></button>
         <button className="nav-item" onClick={() => { setSettingsOpen(true); setSidebarOpen(false); }}><BookOpen size={17} /> Knowledge & persona</button>
         <div className="history-head"><span>RECENT</span><span>{chatSearch.trim() ? `${filteredChats.length}/${sortedChats.length}` : sortedChats.length}</span></div>
-        <input className="history-search" type="search" aria-label="Search conversations" placeholder="Search chats and messages…" value={chatSearch} onChange={(event) => setChatSearch(event.target.value)} />
+        <input ref={historySearchRef} className="history-search" type="search" aria-label="Search conversations" placeholder="Search chats and messages…" value={chatSearch} onChange={(event) => setChatSearch(event.target.value)} />
         <div className="chat-list">
           {filteredChats.length ? filteredChats.map((chat) => (
             <div key={chat.id} className={`chat-list-row ${chat.id === activeChat?.id ? "active" : ""}`}>
