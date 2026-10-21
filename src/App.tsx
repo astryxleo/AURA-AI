@@ -212,6 +212,10 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
       setCloudSync("loading");
       setCloudRestoreFailed(false);
       try {
+        // Let any already-queued save/delete finish before reading cloud history,
+        // especially after the user manually retries a failed sync.
+        await cloudWriteQueueRef.current.catch(() => undefined);
+        if (cancelled) return;
         const { data, error: cloudError } = await supabase.from("aura_chats")
           .select("id,title,messages,updated_at").eq("user_id", userId).order("updated_at", { ascending: false });
         if (cloudError) throw cloudError;
