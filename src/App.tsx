@@ -113,6 +113,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   const [connection, setConnection] = useState<"unknown" | "online" | "offline">("unknown");
   const [networkOnline, setNetworkOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const conversationRef = useRef<HTMLElement>(null);
   useEffect(() => {
     const handleOnline = () => setNetworkOnline(true);
     const handleOffline = () => setNetworkOnline(false);
@@ -148,6 +149,12 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   }, [draft]);
   const activeChat = chats.find((chat) => chat.id === activeId) ?? chats[0];
   const hasMessages = Boolean(activeChat?.messages.length);
+
+  useEffect(() => {
+    const conversation = conversationRef.current;
+    if (!conversation) return;
+    conversation.scrollTo({ top: conversation.scrollHeight, behavior: "smooth" });
+  }, [activeId, activeChat?.messages.length, busy, streamingMessageId]);
 
   useEffect(() => { if (cloudLoaded) localStorage.setItem(chatKey, JSON.stringify(chats)); }, [chats, cloudLoaded, chatKey]);
   useEffect(() => { localStorage.setItem("aura.pinned-chats.v1." + userId, JSON.stringify(pinnedChatIds)); }, [pinnedChatIds, userId]);
@@ -628,7 +635,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
           </div>
         </header>
 
-        <section className="conversation" aria-live="polite">
+        <section ref={conversationRef} className="conversation" aria-live="polite">
           {!hasMessages ? (
             <div className="welcome">
               <div className="welcome-icon"><Sparkles size={28} /></div>
