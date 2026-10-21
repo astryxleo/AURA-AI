@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent } from "react";
-import { BookOpen, Check, ChevronDown, Cpu, FileText, LogOut, Menu, MessageSquare, Pencil, Pin, Plus, Send, Download, FileUp, Settings2, Sparkles, Trash2, Upload, X, Zap } from "lucide-react";
+import { BookOpen, Check, ChevronDown, Copy, Cpu, FileText, LogOut, Menu, MessageSquare, Pencil, Pin, Plus, Send, Download, FileUp, Settings2, Sparkles, Trash2, Upload, X, Zap } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import { supabase } from "./lib/supabase";
 
@@ -642,7 +642,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
                     <div className="message-label">{message.role === "assistant" ? "AURA" : "YOU"}</div>
                     <div className={`message-content ${message.id === streamingMessageId ? "message-streaming" : ""}`}><MarkdownContent content={message.id === streamingMessageId ? message.content.slice(0, revealedChars) : message.content} /></div>
                     {message.id !== streamingMessageId && <div className="message-actions">
-                      <button type="button" onClick={() => { void copyMessage(message.content); }} aria-label={message.role === "assistant" ? "Copy AURA response" : "Copy your message"} title="Copy message"><FileUp size={13} /> Copy</button>
+                      <button type="button" onClick={() => { void copyMessage(message.content); }} aria-label={message.role === "assistant" ? "Copy AURA response" : "Copy your message"} title="Copy message"><Copy size={13} /> Copy</button>
                       {message.role === "user" && <button type="button" disabled={busy} onClick={() => editUserMessage(message.id)} title="Edit and resend this message"><Pencil size={13} /> Edit</button>}
                       {message.role === "assistant" && <button type="button" disabled={busy} onClick={() => regenerateFromMessage(message.id)} title="Regenerate this response"><Sparkles size={13} /> Regenerate</button>}
                     </div>}
