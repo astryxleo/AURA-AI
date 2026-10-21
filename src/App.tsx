@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent } from "react";
-import { BookOpen, Check, ChevronDown, Cpu, FileText, Menu, MessageSquare, Plus, Send, Settings2, Sparkles, Trash2, Upload, X, Zap } from "lucide-react";
+import { BookOpen, Check, ChevronDown, Cpu, FileText, LogOut, Menu, MessageSquare, Plus, Send, Settings2, Sparkles, Trash2, Upload, X, Zap } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import { supabase } from "./lib/supabase";
 
@@ -365,7 +365,8 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
         <div className="sidebar-bottom">
           <div className="profile-orb">A</div>
           <div className="profile-copy"><strong>Your AURA</strong><small>{userEmail}</small></div>
-          <button className="icon-button" aria-label="Open settings" onClick={() => setSettingsOpen(true)}><Settings2 size={18} /></button>
+          <button className="icon-button" aria-label="Open settings" title="Settings" onClick={() => setSettingsOpen(true)}><Settings2 size={18} /></button>
+          <button className="icon-button" aria-label="Sign out" title="Sign out" onClick={onSignOut}><LogOut size={18} /></button>
         </div>
       </aside>
 
