@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent } from "react";
-import { BookOpen, Check, ChevronDown, Cpu, FileText, LogOut, Menu, MessageSquare, Pencil, Plus, Send, Settings2, Sparkles, Trash2, Upload, X, Zap } from "lucide-react";
+import { BookOpen, Check, ChevronDown, Cpu, FileText, LogOut, Menu, MessageSquare, Pencil, Pin, Plus, Send, Settings2, Sparkles, Trash2, Upload, X, Zap } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import { supabase } from "./lib/supabase";
 
@@ -90,6 +90,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
   const [chats, setChats] = useState<Chat[]>(() => loadJson<Chat[]>(chatKey, [starterChat()]));
   const [chatSearch, setChatSearch] = useState("");
+  const [pinnedChatIds, setPinnedChatIds] = useState<string[]>(() => loadJson<string[]>("aura.pinned-chats.v1." + userId, []));
   const [activeId, setActiveId] = useState(() => chats[0]?.id ?? "");
   const [knowledgeDocs, setKnowledgeDocs] = useState<KnowledgeDocument[]>(() => loadJson<KnowledgeDocument[]>(knowledgeKey, []));
   const [uploadError, setUploadError] = useState("");
@@ -131,6 +132,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   const hasMessages = Boolean(activeChat?.messages.length);
 
   useEffect(() => { if (cloudLoaded) localStorage.setItem(chatKey, JSON.stringify(chats)); }, [chats, cloudLoaded, chatKey]);
+  useEffect(() => { localStorage.setItem("aura.pinned-chats.v1." + userId, JSON.stringify(pinnedChatIds)); }, [pinnedChatIds, userId]);
   useEffect(() => { localStorage.setItem(settingsKey, JSON.stringify(settings)); }, [settings, settingsKey]);
   useEffect(() => { localStorage.setItem(knowledgeKey, JSON.stringify(knowledgeDocs)); }, [knowledgeDocs, knowledgeKey]);
   useEffect(() => { if (!activeId && chats[0]) setActiveId(chats[0].id); }, [activeId, chats]);
@@ -223,7 +225,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
     return () => window.clearInterval(interval);
   }, [streamingMessageId, streamingMessage?.id, streamingMessage?.content]);
 
-  const sortedChats = useMemo(() => [...chats].sort((a, b) => b.updatedAt - a.updatedAt), [chats]);
+  const sortedChats = useMemo(() => [...chats].sort((a, b) => Number(pinnedChatIds.includes(b.id)) - Number(pinnedChatIds.includes(a.id)) || b.updatedAt - a.updatedAt), [chats, pinnedChatIds]);
   const filteredChats = useMemo(() => {
     const query = chatSearch.trim().toLocaleLowerCase();
     if (!query) return sortedChats;
@@ -238,6 +240,10 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
     setError("");
     setSidebarOpen(false);
     window.setTimeout(() => inputRef.current?.focus(), 50);
+  }
+
+  function togglePinnedChat(id: string) {
+    setPinnedChatIds((previous) => previous.includes(id) ? previous.filter((chatId) => chatId !== id) : [...previous, id]);
   }
 
   function renameChat(id: string) {
@@ -454,6 +460,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
               <button className="chat-pick" onClick={() => { setActiveId(chat.id); setSidebarOpen(false); setError(""); }}>
                 <MessageSquare size={15} /><span>{chat.title}</span>
               </button>
+              <button className={`pin-chat ${pinnedChatIds.includes(chat.id) ? "pinned" : ""}`} aria-label={(pinnedChatIds.includes(chat.id) ? "Unpin " : "Pin ") + chat.title} title={pinnedChatIds.includes(chat.id) ? "Unpin conversation" : "Pin conversation"} onClick={() => togglePinnedChat(chat.id)}><Pin size={13} /></button>
               <button className="rename-chat" aria-label={"Rename " + chat.title} title="Rename conversation" disabled={deletingChatId !== null} onClick={() => renameChat(chat.id)}><Pencil size={13} /></button>
               <button className="delete-chat" aria-label={"Delete " + chat.title} title="Delete conversation" disabled={deletingChatId !== null} onClick={() => { void deleteChat(chat.id); }}><Trash2 size={14} /></button>
             </div>
