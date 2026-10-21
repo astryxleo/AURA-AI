@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent } from "react";
-import { BookOpen, Check, ChevronDown, Copy, Cpu, FileText, LogOut, Menu, MessageSquare, Pencil, Pin, Plus, Send, Download, FileUp, Settings2, Sparkles, Trash2, Upload, X, Zap } from "lucide-react";
+import { BookOpen, Check, ChevronDown, Copy, Cpu, FileText, LogOut, Menu, MessageSquare, Pencil, Pin, Plus, Send, Download, FileUp, CopyPlus, Settings2, Sparkles, Trash2, Upload, X, Zap } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import { supabase } from "./lib/supabase";
 
@@ -338,6 +338,23 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
     }
   }
 
+  function duplicateChat(id: string) {
+    const source = chats.find((chat) => chat.id === id);
+    if (!source) return;
+    const now = Date.now();
+    const duplicate: Chat = {
+      ...source,
+      id: newId(),
+      title: (source.title.trim() || "New conversation").slice(0, 70) + " (copy)",
+      messages: source.messages.map((message) => ({ ...message, id: newId() })),
+      updatedAt: now,
+    };
+    setChats((previous) => [duplicate, ...previous]);
+    setActiveId(duplicate.id);
+    setSidebarOpen(false);
+    setError("");
+  }
+
   function togglePinnedChat(id: string) {
     setPinnedChatIds((previous) => previous.includes(id) ? previous.filter((chatId) => chatId !== id) : [...previous, id]);
   }
@@ -633,6 +650,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
                 <MessageSquare size={15} /><span>{chat.title}</span>
               </button>
               <button className={`pin-chat ${pinnedChatIds.includes(chat.id) ? "pinned" : ""}`} aria-label={(pinnedChatIds.includes(chat.id) ? "Unpin " : "Pin ") + chat.title} title={pinnedChatIds.includes(chat.id) ? "Unpin conversation" : "Pin conversation"} onClick={() => togglePinnedChat(chat.id)}><Pin size={13} /></button>
+              <button className="duplicate-chat" aria-label={"Duplicate " + chat.title} title="Duplicate conversation" disabled={deletingChatId !== null} onClick={() => duplicateChat(chat.id)}><CopyPlus size={13} /></button>
               <button className="rename-chat" aria-label={"Rename " + chat.title} title="Rename conversation" disabled={deletingChatId !== null} onClick={() => renameChat(chat.id)}><Pencil size={13} /></button>
               <button className="delete-chat" aria-label={"Delete " + chat.title} title="Delete conversation" disabled={deletingChatId !== null} onClick={() => { void deleteChat(chat.id); }}><Trash2 size={14} /></button>
             </div>
