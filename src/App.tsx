@@ -188,19 +188,24 @@ export default function App() {
   }
 
   function selectKnowledgeContext(prompt: string) {
-    const terms = Array.from(new Set(prompt.toLowerCase().match(/[a-z0-9]{3,}/g) ?? []));
+    const stopWords = new Set(["the", "and", "for", "with", "that", "this", "what", "when", "where", "which", "from", "have", "does", "your", "about", "into", "are", "was", "were", "how", "can", "could", "would", "should", "please", "tell", "explain", "give", "help", "use", "using", "me", "you", "our", "their", "they", "them", "then", "than", "not", "but", "all", "any", "just", "also", "like", "make"]);
+    const terms = Array.from(new Set((prompt.toLowerCase().match(/[a-z0-9]{3,}/g) ?? []).filter((term) => !stopWords.has(term))));
     if (!terms.length || !knowledgeDocs.length) return "";
     const ranked = knowledgeDocs.map((doc) => {
       const lower = doc.content.toLowerCase();
       const name = doc.name.toLowerCase();
-      const score = terms.reduce((sum, term) => sum + Math.max(0, lower.split(term).length - 1) + (name.includes(term) ? 3 : 0), 0);
+      const score = terms.reduce((sum, term) => {
+        const matches = lower.match(new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"))?.length ?? 0;
+        return sum + Math.min(matches, 8) + (name.includes(term) ? 4 : 0);
+      }, 0);
       return { doc, score };
     }).filter((item) => item.score > 0).sort((a, b) => b.score - a.score).slice(0, 3);
     if (!ranked.length) return "";
     const excerpts = ranked.map(({ doc }) => {
       const lower = doc.content.toLowerCase();
-      const hit = terms.map((term) => lower.indexOf(term)).filter((index) => index >= 0).sort((a, b) => a - b)[0] ?? 0;
-      const start = Math.max(0, hit - 900);
+      const hits = terms.map((term) => lower.indexOf(term)).filter((index) => index >= 0);
+      const hit = hits.length ? hits.reduce((sum, value) => sum + value, 0) / hits.length : 0;
+      const start = Math.max(0, Math.floor(hit) - 900);
       const excerpt = doc.content.slice(start, start + 3500);
       return "\n[Document: " + doc.name + "]\n" + (start > 0 ? "… " : "") + excerpt + (start + 3500 < doc.content.length ? " …" : "");
     });
