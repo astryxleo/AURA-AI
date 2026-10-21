@@ -42,3 +42,26 @@ body { overflow: hidden; }
   .conversation { min-height: 0; padding-bottom: 12px; }
   .composer-wrap { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
 }
+
+
+/* Knowledge Vault */
+.vault-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-top:10px; }
+.vault-heading .field-label { margin-top:0; display:block; }
+.vault-heading .field-help { margin-top:5px; }
+.vault-count { flex:0 0 auto; border:1px solid #373044; background:#1b1925; border-radius:7px; color:#c7b9f5; font:10px var(--mono); padding:5px 7px; }
+.vault-file-input { display:none; }
+.vault-upload { width:100%; min-height:48px; display:flex; align-items:center; gap:9px; padding:11px 12px; border:1px dashed #51446e; border-radius:9px; background:#17151f; color:#ded7f7; text-align:left; }
+.vault-upload svg { color:#b6a0ff; }
+.vault-upload span { font-size:11px; font-weight:600; }
+.vault-upload small { margin-left:auto; color:#858094; font:9px var(--mono); }
+.vault-upload:disabled { opacity:.45; cursor:not-allowed; }
+.vault-list { display:flex; flex-direction:column; gap:6px; }
+.vault-item { display:flex; align-items:center; gap:10px; min-width:0; border:1px solid #2b2c36; background:#0d0e13; border-radius:9px; padding:9px 10px; }
+.vault-file-icon { flex:0 0 30px; width:30px; height:30px; display:grid; place-items:center; border-radius:8px; background:#211c31; color:#b6a0ff; }
+.vault-file-copy { display:flex; flex:1; min-width:0; flex-direction:column; gap:4px; }
+.vault-file-copy strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; font-weight:600; color:#d9d7e5; }
+.vault-file-copy small { font-size:9px; color:#77798b; }
+.vault-delete { opacity:1; flex:0 0 auto; }
+.vault-empty { border:1px dashed #30313c; border-radius:8px; padding:14px; color:#77798b; text-align:center; font-size:10px; }
+.vault-error { border:1px solid #653b42; background:#251619; border-radius:8px; color:#f0b5b8; padding:9px 10px; font-size:10px; line-height:1.5; }
+@media(max-width:680px) { .vault-upload { flex-wrap:wrap; } .vault-upload small { font-size:8px; } }
