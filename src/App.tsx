@@ -365,6 +365,33 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
       : chat));
   }
 
+  function exportActiveChat() {
+    if (!activeChat) return;
+    const transcript = [
+      "# " + activeChat.title,
+      "",
+      ...activeChat.messages.flatMap((message) => [
+        "## " + (message.role === "user" ? "You" : "AURA"),
+        "",
+        message.content,
+        "",
+        "---",
+        "",
+      ]),
+    ].join("\n").trim() + "\n";
+    const blob = new Blob([transcript], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const safeName = activeChat.title.trim().replace(/[^a-z0-9-_]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "aura-conversation";
+    link.href = url;
+    link.download = safeName + ".md";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    setError("");
+  }
+
   async function copyMessage(content: string) {
     try {
       await navigator.clipboard.writeText(content);
@@ -652,7 +679,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
             </div>
           ) : (
             <div className="message-stack">
-              <div className="conversation-heading"><div className="mini-orb"><Sparkles size={18} /></div><div><h2>{activeChat?.title}</h2><span>{activeChat?.messages.length ?? 0} messages · Synced to your account</span></div></div>
+              <div className="conversation-heading"><div className="mini-orb"><Sparkles size={18} /></div><div className="conversation-heading-copy"><h2>{activeChat?.title}</h2><span>{activeChat?.messages.length ?? 0} messages · Synced to your account</span></div>{Boolean(activeChat?.messages.length) && <button className="export-chat-button" type="button" onClick={exportActiveChat} title="Export this conversation as Markdown"><Download size={14} /><span>Export</span></button>}</div>
               {activeChat?.messages.map((message) => (
                 <article className={`message-row ${message.role}`} key={message.id}>
                   <div className={`message-avatar ${message.role}`}>{message.role === "assistant" ? <Sparkles size={17} /> : "Y"}</div>
