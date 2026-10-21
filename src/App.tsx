@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent } from "react";
 import { BookOpen, Check, ChevronDown, Cpu, FileText, Menu, MessageSquare, Plus, Send, Settings2, Sparkles, Trash2, Upload, X, Zap } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
+import { supabase } from "./lib/supabase";
 
 type Message = { id: string; role: "user" | "assistant"; content: string; createdAt: number };
 type Chat = { id: string; title: string; messages: Message[]; updatedAt: number };
@@ -77,14 +78,18 @@ function loadJson<T,>(key: string, fallback: T): T {
   try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) as T : fallback; } catch { return fallback; }
 }
 
-export default function App() {
-  const [chats, setChats] = useState<Chat[]>(() => loadJson<Chat[]>(CHAT_KEY, [starterChat()]));
+export default function App({ userId, userEmail, onSignOut }: { userId: string; userEmail: string; onSignOut: () => void }) {
+  const chatKey = CHAT_KEY + "." + userId;
+  const settingsKey = SETTINGS_KEY + "." + userId;
+  const knowledgeKey = KNOWLEDGE_KEY + "." + userId;
+  const [cloudLoaded, setCloudLoaded] = useState(false);
+  const [chats, setChats] = useState<Chat[]>(() => loadJson<Chat[]>(chatKey, [starterChat()]));
   const [activeId, setActiveId] = useState(() => chats[0]?.id ?? "");
-  const [knowledgeDocs, setKnowledgeDocs] = useState<KnowledgeDocument[]>(() => loadJson<KnowledgeDocument[]>(KNOWLEDGE_KEY, []));
+  const [knowledgeDocs, setKnowledgeDocs] = useState<KnowledgeDocument[]>(() => loadJson<KnowledgeDocument[]>(knowledgeKey, []));
   const [uploadError, setUploadError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [settings, setSettings] = useState<Settings>(() => {
-    const saved = loadJson<Partial<Settings>>(SETTINGS_KEY, {});
+    const saved = loadJson<Partial<Settings>>(settingsKey, {});
     // Migrate the old default so existing browser sessions use a currently recommended model.
     if (saved.model === "gemini-2.5-flash") saved.model = "gemini-3.8-flash";
     return { ...defaultSettings, ...saved };
@@ -107,10 +112,54 @@ export default function App() {
   const activeChat = chats.find((chat) => chat.id === activeId) ?? chats[0];
   const hasMessages = Boolean(activeChat?.messages.length);
 
-  useEffect(() => { localStorage.setItem(CHAT_KEY, JSON.stringify(chats)); }, [chats]);
-  useEffect(() => { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }, [settings]);
-  useEffect(() => { localStorage.setItem(KNOWLEDGE_KEY, JSON.stringify(knowledgeDocs)); }, [knowledgeDocs]);
+  useEffect(() => { if (cloudLoaded) localStorage.setItem(chatKey, JSON.stringify(chats)); }, [chats, cloudLoaded, chatKey]);
+  useEffect(() => { localStorage.setItem(settingsKey, JSON.stringify(settings)); }, [settings, settingsKey]);
+  useEffect(() => { localStorage.setItem(knowledgeKey, JSON.stringify(knowledgeDocs)); }, [knowledgeDocs, knowledgeKey]);
   useEffect(() => { if (!activeId && chats[0]) setActiveId(chats[0].id); }, [activeId, chats]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function restoreCloudChats() {
+      if (!supabase) { setCloudLoaded(true); return; }
+      try {
+        const { data, error: cloudError } = await supabase.from("aura_chats")
+          .select("id,title,messages,updated_at").eq("user_id", userId).order("updated_at", { ascending: false });
+        if (cloudError) throw cloudError;
+        if (!cancelled && data?.length) {
+          const restored: Chat[] = data.map((row) => ({
+            id: row.id as string,
+            title: row.title as string,
+            messages: row.messages as Message[],
+            updatedAt: Date.parse(row.updated_at as string) || Date.now(),
+          }));
+          setChats(restored);
+          setActiveId(restored[0]?.id ?? "");
+        }
+      } catch (cloudError) {
+        console.warn("AURA cloud chat restore failed:", cloudError);
+      } finally {
+        if (!cancelled) setCloudLoaded(true);
+      }
+    }
+    void restoreCloudChats();
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  useEffect(() => {
+    if (!cloudLoaded || !supabase || !chats.length) return;
+    const rows = chats.map((chat) => ({
+      id: chat.id,
+      user_id: userId,
+      title: chat.title,
+      messages: chat.messages,
+      updated_at: new Date(chat.updatedAt).toISOString(),
+    }));
+    void supabase.from("aura_chats").upsert(rows, { onConflict: "id" }).then(({ error: cloudError }) => {
+      if (cloudError) console.warn("AURA cloud chat save failed:", cloudError);
+    });
+  }, [chats, cloudLoaded, userId]);
+
+
 
   const streamingMessage = activeChat?.messages.find((message) => message.id === streamingMessageId);
   useEffect(() => {
@@ -283,6 +332,7 @@ export default function App() {
   }
 
   function deleteChat(id: string) {
+    if (supabase) void supabase.from("aura_chats").delete().eq("id", id).eq("user_id", userId).then(({ error: cloudError }) => { if (cloudError) console.warn("AURA cloud chat delete failed:", cloudError); });
     const remaining = chats.filter((chat) => chat.id !== id);
     const next = remaining.length ? remaining : [starterChat()];
     setChats(next);
@@ -314,7 +364,7 @@ export default function App() {
         </div>
         <div className="sidebar-bottom">
           <div className="profile-orb">A</div>
-          <div className="profile-copy"><strong>Your AURA</strong><small>Personal workspace</small></div>
+          <div className="profile-copy"><strong>Your AURA</strong><small>{userEmail}</small></div>
           <button className="icon-button" aria-label="Open settings" onClick={() => setSettingsOpen(true)}><Settings2 size={18} /></button>
         </div>
       </aside>
@@ -349,7 +399,7 @@ export default function App() {
             </div>
           ) : (
             <div className="message-stack">
-              <div className="conversation-heading"><div className="mini-orb"><Sparkles size={18} /></div><div><h2>{activeChat?.title}</h2><span>{activeChat?.messages.length ?? 0} messages · Stored in this browser</span></div></div>
+              <div className="conversation-heading"><div className="mini-orb"><Sparkles size={18} /></div><div><h2>{activeChat?.title}</h2><span>{activeChat?.messages.length ?? 0} messages · Synced to your account</span></div></div>
               {activeChat?.messages.map((message) => (
                 <article className={`message-row ${message.role}`} key={message.id}>
                   <div className={`message-avatar ${message.role}`}>{message.role === "assistant" ? <Sparkles size={17} /> : "Y"}</div>
@@ -368,7 +418,7 @@ export default function App() {
             <textarea ref={inputRef} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={onKeyDown} placeholder="Message AURA... (Enter to send, Shift + Enter for a new line)" rows={1} aria-label="Message AURA" />
             <div className="composer-bottom"><div className="composer-hint"><span className="composer-spark"><Sparkles size={13} /></span><span>Curious by design.</span></div><button className="send-button" type="submit" disabled={!draft.trim() || busy} aria-label="Send message">{busy ? <span className="send-loader" /> : <Send size={17} />}<span>Send</span></button></div>
           </form>
-          <p className="disclaimer">AURA can make mistakes. Verify important information. Your chats stay in this browser.</p>
+          <p className="disclaimer">AURA can make mistakes. Verify important information. Your chats sync to your account.</p>
         </div>
       </main>
 
