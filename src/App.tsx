@@ -124,6 +124,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   const cloudSyncVersionRef = useRef(0);
   const [cloudSync, setCloudSync] = useState<"loading" | "saving" | "saved" | "local" | "error">("loading");
   const [cloudRetryToken, setCloudRetryToken] = useState(0);
+  const [localSaveWarning, setLocalSaveWarning] = useState(false);
   const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
   const [chats, setChats] = useState<Chat[]>(() => loadJson<Chat[]>(chatKey, [starterChat()]));
   const [chatSearch, setChatSearch] = useState("");
@@ -193,10 +194,13 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
     conversation.scrollTo({ top: conversation.scrollHeight, behavior: "smooth" });
   }, [activeId, activeChat?.messages.length, busy, streamingMessageId]);
 
-  useEffect(() => { if (cloudLoaded) saveJson(chatKey, chats); }, [chats, cloudLoaded, chatKey]);
-  useEffect(() => { saveJson("aura.pinned-chats.v1." + userId, pinnedChatIds); }, [pinnedChatIds, userId]);
-  useEffect(() => { saveJson(settingsKey, settings); }, [settings, settingsKey]);
-  useEffect(() => { saveJson(knowledgeKey, knowledgeDocs); }, [knowledgeDocs, knowledgeKey]);
+  useEffect(() => {
+    const chatSaved = !cloudLoaded || saveJson(chatKey, chats);
+    const pinsSaved = saveJson("aura.pinned-chats.v1." + userId, pinnedChatIds);
+    const settingsSaved = saveJson(settingsKey, settings);
+    const knowledgeSaved = saveJson(knowledgeKey, knowledgeDocs);
+    setLocalSaveWarning(!(chatSaved && pinsSaved && settingsSaved && knowledgeSaved));
+  }, [chats, cloudLoaded, chatKey, pinnedChatIds, userId, settingsKey, settings, knowledgeKey, knowledgeDocs]);
   useEffect(() => { if (!activeId && chats[0]) setActiveId(chats[0].id); }, [activeId, chats]);
 
   useEffect(() => {
@@ -721,6 +725,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
           <div className="topbar-right">
             <div className={`connection ${connection}`}><span className="status-dot" />{connection === "online" ? "Model connected" : connection === "offline" ? "Model offline" : "Cloud AI"}</div>
             {!networkOnline && <div className="connection offline" role="status" aria-live="polite"><span className="status-dot" />No internet connection</div>}
+            {localSaveWarning && <div className="connection offline storage-warning" role="status" aria-live="polite"><span className="status-dot" />Browser storage is full or unavailable. Export a chat backup to protect recent changes.</div>}
             <div className={`connection ${cloudSync === "error" ? "offline" : cloudSync === "saved" ? "online" : "unknown"}`} role="status" aria-live="polite"><span className="status-dot" />{cloudSync === "loading" ? "Loading history" : cloudSync === "saving" ? "Syncing chats" : cloudSync === "saved" ? "Chats synced" : cloudSync === "local" ? "Browser storage" : "Sync issue"}</div>
             {cloudSync === "error" && supabase && <button className="settings-button" onClick={retryCloudSync}><span>Retry sync</span></button>}
             <button className="settings-button" onClick={() => setSettingsOpen(true)}><Settings2 size={16} /><span>Settings</span></button>
