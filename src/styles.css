@@ -71,3 +71,6 @@ body { overflow: hidden; }
 
 /* Pinned conversations stay above recent history on this browser. */
 .pin-chat{opacity:0;border:0;background:transparent;color:#77798b;padding:7px;display:grid;place-items:center;border-radius:6px;flex:0 0 auto}.pin-chat:hover,.pin-chat.pinned{background:rgba(182,160,255,.1);color:#c7b8ff}.chat-list-row:hover .pin-chat,.pin-chat:focus-visible,.pin-chat.pinned{opacity:1}.pin-chat.pinned svg{fill:currentColor;fill-opacity:.2}
+
+/* Chat history backup controls */
+.chat-backup-actions{display:flex;gap:7px;padding:0 4px 9px}.chat-backup-actions button{display:flex;align-items:center;justify-content:center;gap:6px;flex:1;min-width:0;padding:7px 8px;border:1px solid #2b2c37;border-radius:7px;background:#111219;color:#a8a5bb;font-size:10px;transition:background .18s,border-color .18s,color .18s}.chat-backup-actions button:hover{background:#201c2d;border-color:#51446e;color:#e1d8ff}.chat-backup-actions svg{color:#b6a0ff}.chat-backup-actions input{display:none}
