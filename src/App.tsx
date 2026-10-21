@@ -84,6 +84,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   const knowledgeKey = KNOWLEDGE_KEY + "." + userId;
   const [cloudLoaded, setCloudLoaded] = useState(false);
   const [cloudRestoreFailed, setCloudRestoreFailed] = useState(false);
+  const cloudWriteQueueRef = useRef<Promise<void>>(Promise.resolve());
   const [cloudSync, setCloudSync] = useState<"loading" | "saving" | "saved" | "local" | "error">("loading");
   const [cloudRetryToken, setCloudRetryToken] = useState(0);
   const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
@@ -175,13 +176,14 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
       messages: chat.messages,
       updated_at: new Date(chat.updatedAt).toISOString(),
     }));
-    void supabase.from("aura_chats").upsert(rows, { onConflict: "id" }).then(({ error: cloudError }) => {
-      if (cloudError) {
-        console.warn("AURA cloud chat save failed:", cloudError);
-        setCloudSync("error");
-      } else {
-        setCloudSync("saved");
-      }
+    // Serialize cloud writes so an older save cannot overtake a later delete.
+    const queuedSave = cloudWriteQueueRef.current.catch(() => undefined).then(async () => {
+      const { error: cloudError } = await supabase.from("aura_chats").upsert(rows, { onConflict: "id" });
+      if (cloudError) throw cloudError;
+    });
+    cloudWriteQueueRef.current = queuedSave;
+    void queuedSave.then(() => {
+      setCloudSync("saved");
     }).catch((cloudError: unknown) => {
       console.warn("AURA cloud chat save failed:", cloudError);
       setCloudSync("error");
@@ -368,8 +370,13 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
     setError("");
     try {
       if (supabase) {
-        const { error: cloudError } = await supabase.from("aura_chats").delete().eq("id", id).eq("user_id", userId);
-        if (cloudError) throw cloudError;
+        // Queue deletion after any in-flight save; subsequent state saves will run after it.
+        const queuedDelete = cloudWriteQueueRef.current.catch(() => undefined).then(async () => {
+          const { error: cloudError } = await supabase.from("aura_chats").delete().eq("id", id).eq("user_id", userId);
+          if (cloudError) throw cloudError;
+        });
+        cloudWriteQueueRef.current = queuedDelete;
+        await queuedDelete;
       }
       const remaining = chats.filter((chat) => chat.id !== id);
       const next = remaining.length ? remaining : [starterChat()];
