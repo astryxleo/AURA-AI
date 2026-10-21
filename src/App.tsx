@@ -362,9 +362,15 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
           typeof (message as Message).content === "string")) {
           throw new Error("Backup contains an invalid conversation or message.");
         }
+        const seenMessageIds = new Set<string>();
         const messages = value.messages.map((message) => {
           const entry = message as Message;
-          return { id: typeof entry.id === "string" ? entry.id : newId(), role: entry.role, content: entry.content, createdAt: Number.isFinite(entry.createdAt) ? entry.createdAt : Date.now() };
+          let id = typeof entry.id === "string" && entry.id.trim() ? entry.id : newId();
+          // Imported backups may contain repeated message IDs, which can confuse React keys
+          // and message-level actions. Keep the content but make each ID unique per chat.
+          while (seenMessageIds.has(id)) id = newId();
+          seenMessageIds.add(id);
+          return { id, role: entry.role, content: entry.content, createdAt: Number.isFinite(entry.createdAt) ? entry.createdAt : Date.now() };
         });
         return {
           id: typeof value.id === "string" && value.id ? value.id : newId() + "-" + index,
