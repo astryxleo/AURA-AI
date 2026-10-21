@@ -694,6 +694,8 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
     if (!window.confirm(`Delete "${target.title}"? This removes the conversation from your workspace.`)) return;
     setDeletingChatId(id);
     setError("");
+    // Invalidate any older save callback so it cannot overwrite this operation's status.
+    const deleteSyncVersion = supabase ? ++cloudSyncVersionRef.current : cloudSyncVersionRef.current;
     try {
       if (supabase) {
         // Queue deletion after any in-flight save; subsequent state saves will run after it.
@@ -709,10 +711,10 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
       setChats(next);
       setPinnedChatIds((current) => current.filter((pinnedId) => pinnedId !== id));
       if (activeId === id) setActiveId(next[0].id);
-      if (supabase) setCloudSync("saved");
+      if (supabase && cloudSyncVersionRef.current === deleteSyncVersion) setCloudSync("saved");
     } catch (caught) {
       console.warn("AURA cloud chat delete failed:", caught);
-      setCloudSync("error");
+      if (supabase && cloudSyncVersionRef.current === deleteSyncVersion) setCloudSync("error");
       setError("Couldn't delete this conversation from cloud storage. Your chat is still available; check your connection and retry.");
     } finally {
       setDeletingChatId(null);
