@@ -30,6 +30,8 @@ export default function App() {
   });
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
+  const [revealedChars, setRevealedChars] = useState(0);
   const [error, setError] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -41,6 +43,24 @@ export default function App() {
   useEffect(() => { localStorage.setItem(CHAT_KEY, JSON.stringify(chats)); }, [chats]);
   useEffect(() => { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }, [settings]);
   useEffect(() => { if (!activeId && chats[0]) setActiveId(chats[0].id); }, [activeId, chats]);
+
+  const streamingMessage = activeChat?.messages.find((message) => message.id === streamingMessageId);
+  useEffect(() => {
+    if (!streamingMessage) return;
+    const length = streamingMessage.content.length;
+    const step = Math.max(2, Math.ceil(length / 180));
+    const interval = window.setInterval(() => {
+      setRevealedChars((current) => {
+        const next = Math.min(length, current + step);
+        if (next >= length) {
+          window.clearInterval(interval);
+          window.setTimeout(() => setStreamingMessageId((id) => id === streamingMessage.id ? null : id), 120);
+        }
+        return next;
+      });
+    }, 18);
+    return () => window.clearInterval(interval);
+  }, [streamingMessageId, streamingMessage?.id, streamingMessage?.content]);
 
   const sortedChats = useMemo(() => [...chats].sort((a, b) => b.updatedAt - a.updatedAt), [chats]);
 
@@ -98,6 +118,8 @@ export default function App() {
       const answer = data.message?.content?.trim();
       if (!answer) throw new Error("The model returned an empty response. Check the selected model in Settings.");
       const assistantMessage: Message = { id: newId(), role: "assistant", content: answer, createdAt: Date.now() };
+      setRevealedChars(0);
+      setStreamingMessageId(assistantMessage.id);
       updateActive([...nextMessages, assistantMessage], title);
       setConnection("online");
     } catch (caught) {
@@ -191,7 +213,7 @@ export default function App() {
               {activeChat?.messages.map((message) => (
                 <article className={`message-row ${message.role}`} key={message.id}>
                   <div className={`message-avatar ${message.role}`}>{message.role === "assistant" ? <Sparkles size={17} /> : "Y"}</div>
-                  <div className="message-body"><div className="message-label">{message.role === "assistant" ? "AURA" : "YOU"}</div><div className="message-content">{message.content}</div></div>
+                  <div className="message-body"><div className="message-label">{message.role === "assistant" ? "AURA" : "YOU"}</div><div className={`message-content ${message.id === streamingMessageId ? "message-streaming" : ""}`}>{message.id === streamingMessageId ? message.content.slice(0, revealedChars) : message.content}</div></div>
                 </article>
               ))}
               {busy && <article className="message-row assistant"><div className="message-avatar assistant"><Sparkles size={17} /></div><div className="message-body"><div className="message-label">AURA</div><div className="typing"><span /><span /><span /> <small>Thinking</small></div></div></article>}
