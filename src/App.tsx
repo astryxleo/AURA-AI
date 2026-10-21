@@ -269,7 +269,7 @@ export default function App() {
           {error && <div className="error-banner"><span>{error}</span><button aria-label="Dismiss error" onClick={() => setError("")}><X size={15} /></button></div>}
           <form className="composer" onSubmit={sendMessage}>
             <textarea ref={inputRef} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={onKeyDown} placeholder="Message AURA... (Enter to send, Shift + Enter for a new line)" rows={1} aria-label="Message AURA" />
-            <div className="composer-bottom"><div className="composer-hint"><span className="composer-spark"><Sparkles size={13} /></span><span>Curious by design.</span><span className="hint-divider">/</span><span>{settings.model || "No model selected"}</span></div><button className="send-button" type="submit" disabled={!draft.trim() || busy} aria-label="Send message">{busy ? <span className="send-loader" /> : <Send size={17} />}<span>Send</span></button></div>
+            <div className="composer-bottom"><div className="composer-hint"><span className="composer-spark"><Sparkles size={13} /></span><span>Curious by design.</span></div><button className="send-button" type="submit" disabled={!draft.trim() || busy} aria-label="Send message">{busy ? <span className="send-loader" /> : <Send size={17} />}<span>Send</span></button></div>
           </form>
           <p className="disclaimer">AURA can make mistakes. Verify important information. Your chats stay in this browser.</p>
         </div>
