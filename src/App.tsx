@@ -89,6 +89,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   const [cloudRetryToken, setCloudRetryToken] = useState(0);
   const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
   const [chats, setChats] = useState<Chat[]>(() => loadJson<Chat[]>(chatKey, [starterChat()]));
+  const [chatSearch, setChatSearch] = useState("");
   const [activeId, setActiveId] = useState(() => chats[0]?.id ?? "");
   const [knowledgeDocs, setKnowledgeDocs] = useState<KnowledgeDocument[]>(() => loadJson<KnowledgeDocument[]>(knowledgeKey, []));
   const [uploadError, setUploadError] = useState("");
@@ -223,6 +224,11 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   }, [streamingMessageId, streamingMessage?.id, streamingMessage?.content]);
 
   const sortedChats = useMemo(() => [...chats].sort((a, b) => b.updatedAt - a.updatedAt), [chats]);
+  const filteredChats = useMemo(() => {
+    const query = chatSearch.trim().toLocaleLowerCase();
+    if (!query) return sortedChats;
+    return sortedChats.filter((chat) => chat.title.toLocaleLowerCase().includes(query) || chat.messages.some((message) => message.content.toLocaleLowerCase().includes(query)));
+  }, [chatSearch, sortedChats]);
 
   function createChat() {
     const chat = starterChat();
@@ -424,16 +430,17 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
         <div className="sidebar-label">YOUR WORKSPACE</div>
         <button className="nav-item selected" onClick={() => setSidebarOpen(false)}><MessageSquare size={17} /> Chats <span className="nav-count">{chats.length}</span></button>
         <button className="nav-item" onClick={() => { setSettingsOpen(true); setSidebarOpen(false); }}><BookOpen size={17} /> Knowledge & persona</button>
-        <div className="history-head"><span>RECENT</span><span>{sortedChats.length}</span></div>
+        <div className="history-head"><span>RECENT</span><span>{chatSearch.trim() ? `${filteredChats.length}/${sortedChats.length}` : sortedChats.length}</span></div>
+        <input className="history-search" type="search" aria-label="Search conversations" placeholder="Search chats and messages…" value={chatSearch} onChange={(event) => setChatSearch(event.target.value)} />
         <div className="chat-list">
-          {sortedChats.map((chat) => (
+          {filteredChats.length ? filteredChats.map((chat) => (
             <div key={chat.id} className={`chat-list-row ${chat.id === activeChat?.id ? "active" : ""}`}>
               <button className="chat-pick" onClick={() => { setActiveId(chat.id); setSidebarOpen(false); setError(""); }}>
                 <MessageSquare size={15} /><span>{chat.title}</span>
               </button>
               <button className="delete-chat" aria-label={"Delete " + chat.title} title="Delete conversation" disabled={deletingChatId !== null} onClick={() => { void deleteChat(chat.id); }}><Trash2 size={14} /></button>
             </div>
-          ))}
+          )) : <div className="chat-search-empty">{chatSearch.trim() ? "No conversations match your search." : "No conversations yet."}</div>}
         </div>
         <div className="sidebar-bottom">
           <div className="profile-orb">A</div>
