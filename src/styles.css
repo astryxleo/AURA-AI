@@ -95,3 +95,12 @@ body { overflow: hidden; }
 .export-chat-button:hover{background:#211d2d;border-color:#62527f;color:#f0eaff}
 .export-chat-button:focus-visible{outline:2px solid #b6a0ff;outline-offset:2px}
 @media(max-width:420px){.conversation-heading{gap:8px}.export-chat-button{padding:7px}.export-chat-button span{display:none}}
+
+
+/* Duplicate saved conversations from the history list. */
+.duplicate-chat{opacity:0;border:0;background:transparent;color:#77798b;padding:7px;display:grid;place-items:center;border-radius:6px;flex:0 0 auto}
+.duplicate-chat:hover{background:rgba(182,160,255,.1);color:#d9ceff}
+.chat-list-row:hover .duplicate-chat,.duplicate-chat:focus-visible{opacity:1}
+.duplicate-chat:focus-visible{outline:2px solid #b6a0ff;outline-offset:1px}
+.duplicate-chat:disabled{opacity:.35;cursor:not-allowed}
+@media(max-width:680px){.duplicate-chat{opacity:1;padding:8px}}
