@@ -83,6 +83,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   const settingsKey = SETTINGS_KEY + "." + userId;
   const knowledgeKey = KNOWLEDGE_KEY + "." + userId;
   const [cloudLoaded, setCloudLoaded] = useState(false);
+  const [cloudRestoreFailed, setCloudRestoreFailed] = useState(false);
   const [cloudSync, setCloudSync] = useState<"loading" | "saving" | "saved" | "local" | "error">("loading");
   const [cloudRetryToken, setCloudRetryToken] = useState(0);
   const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
@@ -125,6 +126,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
     async function restoreCloudChats() {
       if (!supabase) { setCloudSync("local"); setCloudLoaded(true); return; }
       setCloudSync("loading");
+      setCloudRestoreFailed(false);
       try {
         const { data, error: cloudError } = await supabase.from("aura_chats")
           .select("id,title,messages,updated_at").eq("user_id", userId).order("updated_at", { ascending: false });
@@ -150,7 +152,10 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
         }
       } catch (cloudError) {
         console.warn("AURA cloud chat restore failed:", cloudError);
-        if (!cancelled) setCloudSync("error");
+        if (!cancelled) {
+          setCloudRestoreFailed(true);
+          setCloudSync("error");
+        }
       } finally {
         if (!cancelled) setCloudLoaded(true);
       }
@@ -160,7 +165,8 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   }, [userId, cloudRetryToken]);
 
   useEffect(() => {
-    if (!cloudLoaded || !supabase || !chats.length) return;
+    // Never push a stale browser cache after cloud restore failed; wait for Retry sync.
+    if (!cloudLoaded || cloudRestoreFailed || !supabase || !chats.length) return;
     setCloudSync("saving");
     const rows = chats.map((chat) => ({
       id: chat.id,
@@ -180,7 +186,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
       console.warn("AURA cloud chat save failed:", cloudError);
       setCloudSync("error");
     });
-  }, [chats, cloudLoaded, userId]);
+  }, [chats, cloudLoaded, cloudRestoreFailed, userId]);
 
 
 
