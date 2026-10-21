@@ -68,3 +68,6 @@ body { overflow: hidden; }
 @media(max-width:680px) { .vault-upload { flex-wrap:wrap; } .vault-upload small { font-size:8px; } }
 
 .account-pill{order:0}.account-signout:hover{border-color:rgba(191,170,255,.5);color:#fff}@media(max-width:760px){.topbar-right .account-pill{max-width:120px}.account-pill span{display:none}.account-signout{padding:7px 8px}}
+
+/* Pinned conversations stay above recent history on this browser. */
+.pin-chat{opacity:0;border:0;background:transparent;color:#77798b;padding:7px;display:grid;place-items:center;border-radius:6px;flex:0 0 auto}.pin-chat:hover,.pin-chat.pinned{background:rgba(182,160,255,.1);color:#c7b8ff}.chat-list-row:hover .pin-chat,.pin-chat:focus-visible,.pin-chat.pinned{opacity:1}.pin-chat.pinned svg{fill:currentColor;fill-opacity:.2}
