@@ -107,7 +107,19 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [connection, setConnection] = useState<"unknown" | "online" | "offline">("unknown");
+  const [networkOnline, setNetworkOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const handleOnline = () => setNetworkOnline(true);
+    const handleOffline = () => setNetworkOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    setNetworkOnline(navigator.onLine);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
   useEffect(() => {
     const input = inputRef.current;
     if (!input) return;
@@ -440,6 +452,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
           </div>
           <div className="topbar-right">
             <div className={`connection ${connection}`}><span className="status-dot" />{connection === "online" ? "Model connected" : connection === "offline" ? "Model offline" : "Cloud AI"}</div>
+            {!networkOnline && <div className="connection offline" role="status" aria-live="polite"><span className="status-dot" />No internet connection</div>}
             <div className={`connection ${cloudSync === "error" ? "offline" : cloudSync === "saved" ? "online" : "unknown"}`} role="status" aria-live="polite"><span className="status-dot" />{cloudSync === "loading" ? "Loading history" : cloudSync === "saving" ? "Syncing chats" : cloudSync === "saved" ? "Chats synced" : cloudSync === "local" ? "Browser storage" : "Sync issue"}</div>
             {cloudSync === "error" && supabase && <button className="settings-button" onClick={retryCloudSync}><span>Retry sync</span></button>}
             <button className="settings-button" onClick={() => setSettingsOpen(true)}><Settings2 size={16} /><span>Settings</span></button>
@@ -477,6 +490,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
         </section>
 
         <div className="composer-wrap">
+          {!networkOnline && <div className="error-banner" role="status"><span>You are offline. Your existing chats remain available; reconnect before sending new messages.</span></div>}
           {error && <div className="error-banner"><span>{error}</span><button aria-label="Dismiss error" onClick={() => setError("")}><X size={15} /></button></div>}
           <form className="composer" onSubmit={sendMessage}>
             <textarea ref={inputRef} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={onKeyDown} placeholder="Message AURA... (Enter to send, Shift + Enter for a new line)" rows={1} aria-label="Message AURA" />
