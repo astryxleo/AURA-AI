@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent } from "react";
-import { BookOpen, Check, ChevronDown, Cpu, FileText, LogOut, Menu, MessageSquare, Pencil, Pin, Plus, Send, Settings2, Sparkles, Trash2, Upload, X, Zap } from "lucide-react";
+import { BookOpen, Check, ChevronDown, Cpu, FileText, LogOut, Menu, MessageSquare, Pencil, Pin, Plus, Send, Download, FileUp, Settings2, Sparkles, Trash2, Upload, X, Zap } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import { supabase } from "./lib/supabase";
 
@@ -91,6 +91,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   const [chats, setChats] = useState<Chat[]>(() => loadJson<Chat[]>(chatKey, [starterChat()]));
   const [chatSearch, setChatSearch] = useState("");
   const historySearchRef = useRef<HTMLInputElement>(null);
+  const chatImportRef = useRef<HTMLInputElement>(null);
   const [pinnedChatIds, setPinnedChatIds] = useState<string[]>(() => loadJson<string[]>("aura.pinned-chats.v1." + userId, []));
   const [activeId, setActiveId] = useState(() => chats[0]?.id ?? "");
   const [knowledgeDocs, setKnowledgeDocs] = useState<KnowledgeDocument[]>(() => loadJson<KnowledgeDocument[]>(knowledgeKey, []));
@@ -257,6 +258,75 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
     setError("");
     setSidebarOpen(false);
     window.setTimeout(() => inputRef.current?.focus(), 50);
+  }
+
+  function exportChats() {
+    const backup = { format: "aura-chat-backup", version: 1, exportedAt: new Date().toISOString(), chats: sortedChats };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "aura-chat-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    setError("");
+  }
+
+  async function importChats(file: File | undefined) {
+    if (!file) return;
+    setError("");
+    try {
+      if (file.size > 10 * 1024 * 1024) throw new Error("Backup files must be 10 MB or smaller.");
+      const parsed: unknown = JSON.parse(await file.text());
+      if (!parsed || typeof parsed !== "object" || !("chats" in parsed) || !Array.isArray((parsed as { chats: unknown }).chats)) {
+        throw new Error("This file doesn't look like an AURA chat backup.");
+      }
+      const rawChats = (parsed as { chats: unknown[] }).chats;
+      const imported: Chat[] = rawChats.map((item, index) => {
+        if (!item || typeof item !== "object") throw new Error("Backup contains an invalid conversation.");
+        const value = item as Partial<Chat>;
+        if (typeof value.title !== "string" || !Array.isArray(value.messages) || !value.messages.every((message) =>
+          Boolean(message) && typeof message === "object" &&
+          ((message as Message).role === "user" || (message as Message).role === "assistant") &&
+          typeof (message as Message).content === "string")) {
+          throw new Error("Backup contains an invalid conversation or message.");
+        }
+        const messages = value.messages.map((message) => {
+          const entry = message as Message;
+          return { id: typeof entry.id === "string" ? entry.id : newId(), role: entry.role, content: entry.content, createdAt: Number.isFinite(entry.createdAt) ? entry.createdAt : Date.now() };
+        });
+        return {
+          id: typeof value.id === "string" && value.id ? value.id : newId() + "-" + index,
+          title: value.title.trim().slice(0, 80) || "Imported conversation",
+          messages,
+          updatedAt: Number.isFinite(value.updatedAt) ? value.updatedAt as number : Date.now(),
+        };
+      });
+      if (!imported.length) throw new Error("This backup doesn't contain any conversations.");
+      setChats((current) => {
+        const merged = new Map(current.map((chat) => [chat.id, chat]));
+        for (const chat of imported) {
+          const existing = merged.get(chat.id);
+          if (!existing) merged.set(chat.id, chat);
+          else if (chat.updatedAt > existing.updatedAt) merged.set(chat.id, chat);
+          else if (JSON.stringify(chat.messages) !== JSON.stringify(existing.messages)) {
+            const copy = { ...chat, id: newId() };
+            merged.set(copy.id, copy);
+          }
+        }
+        return [...merged.values()].sort((left, right) => right.updatedAt - left.updatedAt);
+      });
+      setActiveId(imported[0].id);
+      setChatSearch("");
+      setSidebarOpen(false);
+      setError("");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Couldn't import this backup.");
+    } finally {
+      if (chatImportRef.current) chatImportRef.current.value = "";
+    }
   }
 
   function togglePinnedChat(id: string) {
@@ -470,6 +540,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
         <button className="nav-item selected" onClick={() => setSidebarOpen(false)}><MessageSquare size={17} /> Chats <span className="nav-count">{chats.length}</span></button>
         <button className="nav-item" onClick={() => { setSettingsOpen(true); setSidebarOpen(false); }}><BookOpen size={17} /> Knowledge & persona</button>
         <div className="history-head"><span>RECENT</span><span>{chatSearch.trim() ? `${filteredChats.length}/${sortedChats.length}` : sortedChats.length}</span></div>
+        <div className="chat-backup-actions"><button type="button" onClick={exportChats} title="Export all conversations"><Download size={13} /> Export</button><button type="button" onClick={() => chatImportRef.current?.click()} title="Import an AURA JSON backup"><FileUp size={13} /> Import</button><input ref={chatImportRef} type="file" accept="application/json,.json" aria-label="Import chat backup" onChange={(event) => { void importChats(event.target.files?.[0]); }} /></div>
         <input ref={historySearchRef} className="history-search" type="search" aria-label="Search conversations" placeholder="Search chats and messages…" value={chatSearch} onChange={(event) => setChatSearch(event.target.value)} />
         <div className="chat-list">
           {filteredChats.length ? filteredChats.map((chat) => (
