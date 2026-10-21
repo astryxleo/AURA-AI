@@ -81,3 +81,6 @@ body { overflow: hidden; }
 
 /* Message timestamps */
 .message-label{display:flex;align-items:center;gap:9px}.message-label time{font:9px var(--sans,Inter,sans-serif);letter-spacing:0;color:#666879;font-weight:400}
+
+/* Inline retry action for failed prompts */
+.error-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto}.error-actions>button{display:inline-flex;align-items:center;justify-content:center;gap:5px}.error-actions .retry-message{padding:5px 8px;border:1px solid #78545b;border-radius:6px;background:#321e23;color:#ffd6da;font-size:10px;white-space:nowrap}.error-actions .retry-message:hover:not(:disabled){background:#44252b;border-color:#a76a74}.error-actions .retry-message:disabled{opacity:.5;cursor:not-allowed}@media(max-width:420px){.error-banner{align-items:flex-start}.error-actions{flex-wrap:wrap}.error-actions .retry-message{font-size:9px;padding:5px 6px}}
