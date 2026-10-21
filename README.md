@@ -19,7 +19,7 @@ A personal AI workspace built with React, TypeScript and Vite. The first version
 6. Open the local URL shown by Vite, then select the Ollama model in AURA settings if needed.
 
 ### Ollama browser access
-A browser app on a different origin may be blocked by Ollama's origin policy. If the browser reports a CORS/origin error, configure Ollama's allowed origins for your local Vite URL (usually http://localhost:5173) and restart Ollama. Keep this permission limited to origins you trust.
+A browser app on a different origin may be blocked by Ollama's origin policy. If the browser reports a CORS/origin error, configure Ollama's allowed origins for the exact site origin you use (local Vite is usually http://localhost:5173; the deployed site is https://aura-ai-yoursjace-6706.vercel.app) and restart Ollama. Keep this permission limited to origins you trust.
 
 ## Deploy to Vercel
 Import astryxleo/AURA-AI into Vercel and use the default Vite build settings:
