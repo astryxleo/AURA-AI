@@ -325,7 +325,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
     setError("");
   }
 
-  async async function importChats(file: File | undefined) {
+  async function importChats(file: File | undefined) {
     if (!file) return;
     setError("");
     try {
@@ -653,6 +653,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
       const remaining = chats.filter((chat) => chat.id !== id);
       const next = remaining.length ? remaining : [starterChat()];
       setChats(next);
+      setPinnedChatIds((current) => current.filter((pinnedId) => pinnedId !== id));
       if (activeId === id) setActiveId(next[0].id);
       if (supabase) setCloudSync("saved");
     } catch (caught) {
