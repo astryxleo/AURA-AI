@@ -1,13 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { createClient } from "@supabase/supabase-js";
 import App from "./App";
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
-export const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
-}) : null;
+import { supabase } from "./lib/supabase";
 
 export default function AuthGate() {
   const [session, setSession] = useState<import("@supabase/supabase-js").Session | null>(null);
