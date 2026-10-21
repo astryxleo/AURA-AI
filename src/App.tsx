@@ -93,24 +93,33 @@ function normalizeChat(value: unknown): Chat | null {
   const candidate = value as Partial<Chat>;
   if (typeof candidate.id !== "string" || !candidate.id.trim()) return null;
   if (typeof candidate.title !== "string" || !Array.isArray(candidate.messages)) return null;
+  const now = Date.now();
+  const latestAllowedTimestamp = now + 24 * 60 * 60 * 1000;
+  const validTimestamp = (timestamp: unknown): timestamp is number =>
+    typeof timestamp === "number" && Number.isFinite(timestamp) && timestamp > 0 && timestamp <= latestAllowedTimestamp;
+  const seenMessageIds = new Set<string>();
   const messages: Message[] = [];
   for (const item of candidate.messages) {
     if (!item || typeof item !== "object") continue;
     const message = item as Partial<Message>;
-    if (typeof message.id !== "string" || typeof message.content !== "string") continue;
+    if (typeof message.content !== "string") continue;
     if (message.role !== "user" && message.role !== "assistant") continue;
+    let id = typeof message.id === "string" && message.id.trim() ? message.id : newId();
+    // Cloud rows can be malformed too; ensure stable, unique keys before rendering.
+    while (seenMessageIds.has(id)) id = newId();
+    seenMessageIds.add(id);
     messages.push({
-      id: message.id,
+      id,
       role: message.role,
       content: message.content,
-      createdAt: typeof message.createdAt === "number" && Number.isFinite(message.createdAt) ? message.createdAt : Date.now(),
+      createdAt: validTimestamp(message.createdAt) ? message.createdAt : now,
     });
   }
   return {
     id: candidate.id,
-    title: candidate.title.slice(0, 240),
+    title: candidate.title.trim().slice(0, 240) || "Untitled conversation",
     messages,
-    updatedAt: typeof candidate.updatedAt === "number" && Number.isFinite(candidate.updatedAt) ? candidate.updatedAt : Date.now(),
+    updatedAt: validTimestamp(candidate.updatedAt) ? candidate.updatedAt : now,
   };
 }
 
