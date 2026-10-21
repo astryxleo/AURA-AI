@@ -620,6 +620,13 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
     }
   }
 
+  function resetSettingsToDefaults() {
+    const confirmed = window.confirm("Restore AURA's default model and instructions? Your Knowledge Vault documents and chat history will stay unchanged.");
+    if (!confirmed) return;
+    setSettings({ ...defaultSettings });
+    setError("");
+  }
+
   function retryCloudSync() {
     if (!supabase) return;
     setCloudLoaded(false);
@@ -734,6 +741,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
           <section className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
             <header className="modal-header"><div><div className="modal-kicker">PERSONALIZE YOUR EXPERIENCE</div><h2 id="settings-title">AURA settings</h2><p>Shape how AURA thinks, responds, and uses your context.</p></div><button className="icon-button" onClick={() => setSettingsOpen(false)} aria-label="Close settings"><X size={19} /></button></header>
             <div className="settings-body">
+              <div className="settings-tools"><span className="field-help">Changes save automatically for this account on this browser.</span><button type="button" className="settings-reset" onClick={resetSettingsToDefaults}>Restore defaults</button></div>
               <div className="field-divider" />
               <label className="field-label" htmlFor="personality">Personality instructions</label><textarea id="personality" className="field-textarea" rows={5} value={settings.personality} onChange={(event) => setSettings((old) => ({ ...old, personality: event.target.value }))} placeholder="Tell AURA how to behave..." />
               <label className="field-label" htmlFor="knowledge">Personal knowledge notes</label><textarea id="knowledge" className="field-textarea" rows={5} value={settings.knowledge} onChange={(event) => setSettings((old) => ({ ...old, knowledge: event.target.value }))} placeholder="Add your goals, preferences, project context, or notes that AURA should use..." />
