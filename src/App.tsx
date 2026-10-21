@@ -144,12 +144,20 @@ export default function App() {
           ],
         }),
       });
-      if (!response.ok) {
-        const detail = await response.text().catch(() => "");
-        throw new Error(detail || "AI backend returned HTTP " + response.status);
+      const data = await response.json().catch(() => ({})) as {
+        message?: { content?: string };
+        error?: string;
+        providerStatus?: number;
+      };
+      if (!response.ok || data.error) {
+        if (response.status === 429 || data.providerStatus === 429) {
+          throw new Error("AURA is receiving too many requests right now. Please wait a moment and try again.");
+        }
+        if (response.status >= 500 || data.providerStatus === 503 || data.providerStatus === 502) {
+          throw new Error("AURA couldn't respond just now. Please try again in a moment.");
+        }
+        throw new Error("That message couldn't be processed. Please try again.");
       }
-      const data = await response.json() as { message?: { content?: string }; error?: string };
-      if (data.error) throw new Error(data.error);
       const answer = data.message?.content?.trim();
       if (!answer) throw new Error("The model returned an empty response. Check the selected model in Settings.");
       const assistantMessage: Message = { id: newId(), role: "assistant", content: answer, createdAt: Date.now() };
@@ -161,7 +169,7 @@ export default function App() {
       setConnection("offline");
       const message = caught instanceof Error ? caught.message : "Unknown connection error";
       setError(message.includes("Failed to fetch")
-        ? "Could not reach AURA’s cloud AI backend. Please try again in a moment."
+        ? "AURA is having trouble connecting. Please try again in a moment."
         : message);
       updateActive(nextMessages, title);
     } finally {
@@ -272,8 +280,6 @@ export default function App() {
           <section className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
             <header className="modal-header"><div><div className="modal-kicker">PERSONALIZE YOUR EXPERIENCE</div><h2 id="settings-title">AURA settings</h2><p>Shape how AURA thinks, responds, and uses your context.</p></div><button className="icon-button" onClick={() => setSettingsOpen(false)} aria-label="Close settings"><X size={19} /></button></header>
             <div className="settings-body">
-              <label className="field-label" htmlFor="model">Cloud AI model</label><input id="model" className="field-input" value={settings.model} onChange={(event) => setSettings((old) => ({ ...old, model: event.target.value }))} placeholder="gemini-3.8-flash" />
-              <div className="field-help">AURA uses a hosted model, so visitors do not need Ollama. Model availability depends on the provider and its usage limits.</div>
               <div className="field-divider" />
               <label className="field-label" htmlFor="personality">Personality instructions</label><textarea id="personality" className="field-textarea" rows={5} value={settings.personality} onChange={(event) => setSettings((old) => ({ ...old, personality: event.target.value }))} placeholder="Tell AURA how to behave..." />
               <label className="field-label" htmlFor="knowledge">Personal knowledge notes</label><textarea id="knowledge" className="field-textarea" rows={5} value={settings.knowledge} onChange={(event) => setSettings((old) => ({ ...old, knowledge: event.target.value }))} placeholder="Add your goals, preferences, project context, or notes that AURA should use..." />
