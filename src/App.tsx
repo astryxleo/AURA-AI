@@ -9,10 +9,9 @@ const SETTINGS_KEY = "aura.settings.v1";
 const newId = () => Math.random().toString(36).slice(2, 10);
 const starterChat = (): Chat => ({ id: newId(), title: "New conversation", messages: [], updatedAt: Date.now() });
 
-type Settings = { model: string; endpoint: string; personality: string; knowledge: string };
+type Settings = { model: string; personality: string; knowledge: string };
 const defaultSettings: Settings = {
-  model: "llama3.2:3b",
-  endpoint: "http://localhost:11434",
+  model: "gemini-2.5-flash",
   personality: "You are AURA, a thoughtful, capable personal AI. Be warm, clear, honest about uncertainty, and practical. Use headings or bullets when they improve readability.",
   knowledge: "",
 };
@@ -69,16 +68,15 @@ export default function App() {
     updateActive(nextMessages, title);
     setBusy(true);
     try {
-      const base = settings.endpoint.trim().replace(/\/+$/, "");
       const context = settings.knowledge.trim()
         ? "\n\nPersonal knowledge notes (use when relevant; treat as user-provided context):\n" + settings.knowledge.trim()
         : "";
       const systemPrompt = settings.personality.trim() + context;
-      const response = await fetch(base + "/api/chat", {
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: settings.model.trim() || "llama3.2:3b",
+          model: settings.model.trim() || "gemini-2.5-flash",
           stream: false,
           messages: [
             { role: "system", content: systemPrompt },
@@ -88,7 +86,7 @@ export default function App() {
       });
       if (!response.ok) {
         const detail = await response.text().catch(() => "");
-        throw new Error(detail || "Ollama returned HTTP " + response.status);
+        throw new Error(detail || "AI backend returned HTTP " + response.status);
       }
       const data = await response.json() as { message?: { content?: string }; error?: string };
       if (data.error) throw new Error(data.error);
@@ -101,7 +99,7 @@ export default function App() {
       setConnection("offline");
       const message = caught instanceof Error ? caught.message : "Unknown connection error";
       setError(message.includes("Failed to fetch")
-        ? "Could not reach Ollama. Make sure Ollama is running, the model is installed, and browser access is allowed for this local site."
+        ? "Could not reach AURA’s cloud AI backend. Please try again in a moment."
         : message);
       updateActive(nextMessages, title);
     } finally {
@@ -162,7 +160,7 @@ export default function App() {
             <div className="breadcrumb">Workspace <span>/</span> <strong>{hasMessages ? activeChat?.title : "New conversation"}</strong></div>
           </div>
           <div className="topbar-right">
-            <div className={`connection ${connection}`}><span className="status-dot" />{connection === "online" ? "Model connected" : connection === "offline" ? "Model offline" : "Local AI"}</div>
+            <div className={`connection ${connection}`}><span className="status-dot" />{connection === "online" ? "Model connected" : connection === "offline" ? "Model offline" : "Cloud AI"}</div>
             <button className="settings-button" onClick={() => setSettingsOpen(true)}><Settings2 size={16} /><span>Settings</span></button>
           </div>
         </header>
@@ -180,7 +178,7 @@ export default function App() {
                 <button className="suggestion" onClick={() => setDraft("Help me brainstorm a creative project idea.")}><span className="suggestion-icon gold"><Sparkles size={17} /></span><strong>Explore an idea</strong><small>Go from rough thought to a clear plan</small><span className="suggestion-arrow">↗</span></button>
                 <button className="suggestion" onClick={() => { setSettingsOpen(true); }}><span className="suggestion-icon green"><Settings2 size={17} /></span><strong>Make it yours</strong><small>Customize AURA's personality and memory</small><span className="suggestion-arrow">↗</span></button>
               </div>
-              <div className="welcome-foot"><Cpu size={14} /> Runs with your own local model <span>·</span> <button onClick={() => setSettingsOpen(true)}>Configure model <ChevronDown size={13} /></button></div>
+              <div className="welcome-foot"><Cpu size={14} /> Cloud AI · No local installation needed <span>·</span> <button onClick={() => setSettingsOpen(true)}>Configure AI <ChevronDown size={13} /></button></div>
             </div>
           ) : (
             <div className="message-stack">
@@ -212,9 +210,8 @@ export default function App() {
           <section className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
             <header className="modal-header"><div><div className="modal-kicker">PERSONALIZE YOUR EXPERIENCE</div><h2 id="settings-title">AURA settings</h2><p>Shape how AURA thinks, responds, and uses your context.</p></div><button className="icon-button" onClick={() => setSettingsOpen(false)} aria-label="Close settings"><X size={19} /></button></header>
             <div className="settings-body">
-              <label className="field-label" htmlFor="endpoint">Ollama endpoint</label><input id="endpoint" className="field-input" value={settings.endpoint} onChange={(event) => setSettings((old) => ({ ...old, endpoint: event.target.value }))} placeholder="http://localhost:11434" />
-              <label className="field-label" htmlFor="model">Model name</label><input id="model" className="field-input" value={settings.model} onChange={(event) => setSettings((old) => ({ ...old, model: event.target.value }))} placeholder="llama3.2:3b" />
-              <div className="field-help">The model must already be downloaded in Ollama. Example: llama3.2:3b.</div>
+              <label className="field-label" htmlFor="model">Cloud AI model</label><input id="model" className="field-input" value={settings.model} onChange={(event) => setSettings((old) => ({ ...old, model: event.target.value }))} placeholder="gemini-2.5-flash" />
+              <div className="field-help">AURA uses a hosted model, so visitors do not need Ollama. Model availability depends on the provider and its usage limits.</div>
               <div className="field-divider" />
               <label className="field-label" htmlFor="personality">Personality instructions</label><textarea id="personality" className="field-textarea" rows={5} value={settings.personality} onChange={(event) => setSettings((old) => ({ ...old, personality: event.target.value }))} placeholder="Tell AURA how to behave..." />
               <label className="field-label" htmlFor="knowledge">Personal knowledge notes</label><textarea id="knowledge" className="field-textarea" rows={5} value={settings.knowledge} onChange={(event) => setSettings((old) => ({ ...old, knowledge: event.target.value }))} placeholder="Add your goals, preferences, project context, or notes that AURA should use..." />
