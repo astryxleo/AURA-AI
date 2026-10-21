@@ -126,13 +126,22 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
           .select("id,title,messages,updated_at").eq("user_id", userId).order("updated_at", { ascending: false });
         if (cloudError) throw cloudError;
         if (!cancelled && data?.length) {
-          const restored: Chat[] = data.map((row) => ({
+          const cloudChats: Chat[] = data.map((row) => ({
             id: row.id as string,
             title: row.title as string,
             messages: row.messages as Message[],
             updatedAt: Date.parse(row.updated_at as string) || Date.now(),
           }));
-          setChats(restored);
+          // Merge cloud history with this browser's cache instead of replacing it.
+          // This preserves chats that were created offline or before cloud sync was enabled.
+          const merged = new Map<string, Chat>();
+          for (const chat of chats) merged.set(chat.id, chat);
+          for (const cloudChat of cloudChats) {
+            const localChat = merged.get(cloudChat.id);
+            if (!localChat || cloudChat.updatedAt >= localChat.updatedAt) merged.set(cloudChat.id, cloudChat);
+          }
+          const restored = [...merged.values()].sort((a, b) => b.updatedAt - a.updatedAt);
+          setChats(restored.length ? restored : [starterChat()]);
           setActiveId(restored[0]?.id ?? "");
         }
       } catch (cloudError) {
