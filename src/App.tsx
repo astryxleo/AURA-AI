@@ -1,4 +1,5 @@
-import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { FormEvent, KeyboardEvent } from "react";
 import { BookOpen, Check, ChevronDown, Cpu, Menu, MessageSquare, Plus, Send, Settings2, Sparkles, Trash2, X, Zap } from "lucide-react";
 
 type Message = { id: string; role: "user" | "assistant"; content: string; createdAt: number };
