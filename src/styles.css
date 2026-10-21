@@ -104,3 +104,12 @@ body { overflow: hidden; }
 .duplicate-chat:focus-visible{outline:2px solid #b6a0ff;outline-offset:1px}
 .duplicate-chat:disabled{opacity:.35;cursor:not-allowed}
 @media(max-width:680px){.duplicate-chat{opacity:1;padding:8px}}
+
+
+/* Settings reset action and helper text. */
+.settings-tools{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.settings-tools .field-help{margin:0;max-width:68%}
+.settings-reset{flex:0 0 auto;border:1px solid #4b3540;border-radius:7px;background:#1d141b;color:#e6b9c4;padding:7px 9px;font-size:10px;transition:background .16s,border-color .16s}
+.settings-reset:hover{background:#2b1923;border-color:#80515f;color:#ffe3e9}
+.settings-reset:focus-visible{outline:2px solid #b6a0ff;outline-offset:2px}
+@media(max-width:420px){.settings-tools{align-items:flex-start;flex-direction:column}.settings-tools .field-help{max-width:100%}}
