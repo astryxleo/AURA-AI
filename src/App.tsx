@@ -639,7 +639,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
                 <article className={`message-row ${message.role}`} key={message.id}>
                   <div className={`message-avatar ${message.role}`}>{message.role === "assistant" ? <Sparkles size={17} /> : "Y"}</div>
                   <div className="message-body">
-                    <div className="message-label">{message.role === "assistant" ? "AURA" : "YOU"}</div>
+                    <div className="message-label"><span>{message.role === "assistant" ? "AURA" : "YOU"}</span><time dateTime={new Date(message.createdAt).toISOString()}>{new Date(message.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</time></div>
                     <div className={`message-content ${message.id === streamingMessageId ? "message-streaming" : ""}`}><MarkdownContent content={message.id === streamingMessageId ? message.content.slice(0, revealedChars) : message.content} /></div>
                     {message.id !== streamingMessageId && <div className="message-actions">
                       <button type="button" onClick={() => { void copyMessage(message.content); }} aria-label={message.role === "assistant" ? "Copy AURA response" : "Copy your message"} title="Copy message"><Copy size={13} /> Copy</button>
