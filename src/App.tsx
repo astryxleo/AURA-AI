@@ -84,6 +84,8 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   const knowledgeKey = KNOWLEDGE_KEY + "." + userId;
   const [cloudLoaded, setCloudLoaded] = useState(false);
   const [cloudSync, setCloudSync] = useState<"loading" | "saving" | "saved" | "local" | "error">("loading");
+  const [cloudRetryToken, setCloudRetryToken] = useState(0);
+  const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
   const [chats, setChats] = useState<Chat[]>(() => loadJson<Chat[]>(chatKey, [starterChat()]));
   const [activeId, setActiveId] = useState(() => chats[0]?.id ?? "");
   const [knowledgeDocs, setKnowledgeDocs] = useState<KnowledgeDocument[]>(() => loadJson<KnowledgeDocument[]>(knowledgeKey, []));
@@ -155,7 +157,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
     }
     void restoreCloudChats();
     return () => { cancelled = true; };
-  }, [userId]);
+  }, [userId, cloudRetryToken]);
 
   useEffect(() => {
     if (!cloudLoaded || !supabase || !chats.length) return;
@@ -352,12 +354,37 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
     }
   }
 
-  function deleteChat(id: string) {
-    if (supabase) void supabase.from("aura_chats").delete().eq("id", id).eq("user_id", userId).then(({ error: cloudError }) => { if (cloudError) console.warn("AURA cloud chat delete failed:", cloudError); });
-    const remaining = chats.filter((chat) => chat.id !== id);
-    const next = remaining.length ? remaining : [starterChat()];
-    setChats(next);
-    if (activeId === id) setActiveId(next[0].id);
+  async function deleteChat(id: string) {
+    const target = chats.find((chat) => chat.id === id);
+    if (!target || deletingChatId) return;
+    if (!window.confirm(`Delete "${target.title}"? This removes the conversation from your workspace.`)) return;
+    setDeletingChatId(id);
+    setError("");
+    try {
+      if (supabase) {
+        const { error: cloudError } = await supabase.from("aura_chats").delete().eq("id", id).eq("user_id", userId);
+        if (cloudError) throw cloudError;
+      }
+      const remaining = chats.filter((chat) => chat.id !== id);
+      const next = remaining.length ? remaining : [starterChat()];
+      setChats(next);
+      if (activeId === id) setActiveId(next[0].id);
+      if (supabase) setCloudSync("saved");
+    } catch (caught) {
+      console.warn("AURA cloud chat delete failed:", caught);
+      setCloudSync("error");
+      setError("Couldn't delete this conversation from cloud storage. Your chat is still available; check your connection and retry.");
+    } finally {
+      setDeletingChatId(null);
+    }
+  }
+
+  function retryCloudSync() {
+    if (!supabase) return;
+    setCloudLoaded(false);
+    setCloudSync("loading");
+    setError("");
+    setCloudRetryToken((token) => token + 1);
   }
 
   return (
@@ -379,7 +406,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
               <button className="chat-pick" onClick={() => { setActiveId(chat.id); setSidebarOpen(false); setError(""); }}>
                 <MessageSquare size={15} /><span>{chat.title}</span>
               </button>
-              <button className="delete-chat" aria-label={"Delete " + chat.title} title="Delete conversation" onClick={() => deleteChat(chat.id)}><Trash2 size={14} /></button>
+              <button className="delete-chat" aria-label={"Delete " + chat.title} title="Delete conversation" disabled={deletingChatId !== null} onClick={() => { void deleteChat(chat.id); }}><Trash2 size={14} /></button>
             </div>
           ))}
         </div>
@@ -401,6 +428,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
           <div className="topbar-right">
             <div className={`connection ${connection}`}><span className="status-dot" />{connection === "online" ? "Model connected" : connection === "offline" ? "Model offline" : "Cloud AI"}</div>
             <div className={`connection ${cloudSync === "error" ? "offline" : cloudSync === "saved" ? "online" : "unknown"}`} role="status" aria-live="polite"><span className="status-dot" />{cloudSync === "loading" ? "Loading history" : cloudSync === "saving" ? "Syncing chats" : cloudSync === "saved" ? "Chats synced" : cloudSync === "local" ? "Browser storage" : "Sync issue"}</div>
+            {cloudSync === "error" && supabase && <button className="settings-button" onClick={retryCloudSync}><span>Retry sync</span></button>}
             <button className="settings-button" onClick={() => setSettingsOpen(true)}><Settings2 size={16} /><span>Settings</span></button>
           </div>
         </header>
