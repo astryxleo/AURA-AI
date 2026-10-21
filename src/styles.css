@@ -84,3 +84,14 @@ body { overflow: hidden; }
 
 /* Inline retry action for failed prompts */
 .error-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto}.error-actions>button{display:inline-flex;align-items:center;justify-content:center;gap:5px}.error-actions .retry-message{padding:5px 8px;border:1px solid #78545b;border-radius:6px;background:#321e23;color:#ffd6da;font-size:10px;white-space:nowrap}.error-actions .retry-message:hover:not(:disabled){background:#44252b;border-color:#a76a74}.error-actions .retry-message:disabled{opacity:.5;cursor:not-allowed}@media(max-width:420px){.error-banner{align-items:flex-start}.error-actions{flex-wrap:wrap}.error-actions .retry-message{font-size:9px;padding:5px 6px}}
+
+
+/* Export the active transcript without interrupting the conversation. */
+.conversation-heading{display:flex;align-items:center;gap:12px;min-width:0}
+.conversation-heading-copy{flex:1;min-width:0}
+.conversation-heading-copy h2{overflow-wrap:anywhere}
+.export-chat-button{display:inline-flex;align-items:center;justify-content:center;gap:6px;flex:0 0 auto;padding:7px 9px;border:1px solid #34303f;border-radius:7px;background:#111219;color:#aaa4bd;font-size:10px;transition:background .16s,border-color .16s,color .16s}
+.export-chat-button svg{color:#b6a0ff}
+.export-chat-button:hover{background:#211d2d;border-color:#62527f;color:#f0eaff}
+.export-chat-button:focus-visible{outline:2px solid #b6a0ff;outline-offset:2px}
+@media(max-width:420px){.conversation-heading{gap:8px}.export-chat-button{padding:7px}.export-chat-button span{display:none}}
