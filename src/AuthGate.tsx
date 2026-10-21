@@ -3,6 +3,29 @@ import type { FormEvent } from "react";
 import App from "./App";
 import { supabase } from "./lib/supabase";
 
+function friendlyAuthError(caught: unknown, fallback: string) {
+  const message = caught instanceof Error ? caught.message.toLowerCase() : "";
+  if (message.includes("invalid login credentials") || message.includes("invalid email or password")) {
+    return "That email and password combination wasn't recognised. Check your details and try again.";
+  }
+  if (message.includes("email not confirmed")) {
+    return "Please confirm your email using the link we sent you, then sign in.";
+  }
+  if (message.includes("user already registered") || message.includes("already been registered")) {
+    return "An account may already exist for this email. Try signing in instead.";
+  }
+  if (message.includes("password") && (message.includes("weak") || message.includes("at least"))) {
+    return "Choose a stronger password with at least 8 characters.";
+  }
+  if (message.includes("rate limit") || message.includes("too many requests")) {
+    return "Too many attempts in a short time. Please wait a little and try again.";
+  }
+  if (message.includes("failed to fetch") || message.includes("network")) {
+    return "AURA couldn't reach the account service. Check your internet connection and retry.";
+  }
+  return fallback;
+}
+
 export default function AuthGate() {
   const [session, setSession] = useState<import("@supabase/supabase-js").Session | null>(null);
   const [ready, setReady] = useState(false);
@@ -53,7 +76,7 @@ export default function AuthGate() {
         if (authError) throw authError;
       }
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Authentication failed. Please try again.");
+      setError(friendlyAuthError(caught, "Authentication failed. Please check your details and try again."));
     } finally { setBusy(false); }
   }
 
@@ -68,7 +91,7 @@ export default function AuthGate() {
       if (resetError) throw resetError;
       setNotice("If an account exists for that email, a password-reset link will be sent.");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not request a password reset.");
+      setError(friendlyAuthError(caught, "Could not request a password reset. Please try again."));
     } finally { setBusy(false); }
   }
 
@@ -82,7 +105,7 @@ export default function AuthGate() {
 
   if (!supabase) return <div className="auth-screen"><div className="auth-card"><div className="auth-logo">✦</div><div className="auth-kicker">ONE-TIME SETUP</div><h1>Connect your account layer</h1><p>Add these two public frontend environment variables in Vercel, then redeploy. Never add a service-role key here.</p><code>VITE_SUPABASE_URL</code><code>VITE_SUPABASE_PUBLISHABLE_KEY</code><p className="auth-muted">The Supabase project URL and publishable key are available in Project Settings → API Keys.</p></div></div>;
 
-  if (session?.user && recoveryMode) return <div className="auth-screen"><div className="auth-card"><div className="auth-logo">✦</div><div className="auth-kicker">ACCOUNT SECURITY</div><h1>Choose a new password.</h1><p>Use at least 8 characters, then sign in with your updated password.</p><form className="auth-form" onSubmit={async (event) => { event.preventDefault(); if (!supabase) return; setBusy(true); setError(""); setNotice(""); try { const { error: updateError } = await supabase.auth.updateUser({ password: newPassword }); if (updateError) throw updateError; setRecoveryMode(false); setPassword(""); setNewPassword(""); setNotice("Password updated successfully."); } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not update your password."); } finally { setBusy(false); } }}><label>New password<input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" minLength={8} required /></label>{error && <div className="auth-error" role="alert">{error}</div>}{notice && <div className="auth-notice" role="status">{notice}</div>}<button className="auth-submit" type="submit" disabled={busy}>{busy ? "Updating…" : "Update password"} <span>↗</span></button></form></div></div>;
+  if (session?.user && recoveryMode) return <div className="auth-screen"><div className="auth-card"><div className="auth-logo">✦</div><div className="auth-kicker">ACCOUNT SECURITY</div><h1>Choose a new password.</h1><p>Use at least 8 characters, then sign in with your updated password.</p><form className="auth-form" onSubmit={async (event) => { event.preventDefault(); if (!supabase) return; setBusy(true); setError(""); setNotice(""); try { const { error: updateError } = await supabase.auth.updateUser({ password: newPassword }); if (updateError) throw updateError; setRecoveryMode(false); setPassword(""); setNewPassword(""); setNotice("Password updated successfully."); } catch (caught) { setError(friendlyAuthError(caught, "Could not update your password. Please try again.")); } finally { setBusy(false); } }}><label>New password<input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" minLength={8} required /></label>{error && <div className="auth-error" role="alert">{error}</div>}{notice && <div className="auth-notice" role="status">{notice}</div>}<button className="auth-submit" type="submit" disabled={busy}>{busy ? "Updating…" : "Update password"} <span>↗</span></button></form></div></div>;
 
   if (session?.user) return <App userId={session.user.id} userEmail={session.user.email ?? ""} onSignOut={signOut} />;
 
@@ -101,7 +124,7 @@ export default function AuthGate() {
         {notice && <div className="auth-notice" role="status">{notice}</div>}
         <button className="auth-submit" type="submit" disabled={busy}>{busy ? "Please wait…" : mode === "signin" ? "Sign in securely" : "Create account"} <span>↗</span></button>
       </form>
-      <div className="auth-switch">{mode === "signin" ? "New to AURA?" : "Already have an account?"} <button type="button" onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setError(""); setNotice(""); }}>{mode === "signin" ? "Create account" : "Sign in"}</button></div>
+      <div className="auth-switch">{mode === "signin" ? "New to AURA?" : "Already have an account?"} <button type="button" onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setPassword(""); setNewPassword(""); setError(""); setNotice(""); }}>{mode === "signin" ? "Create account" : "Sign in"}</button></div>
       <div className="auth-foot">Your account is private. Never share your password.</div>
     </div>
   </div>;
