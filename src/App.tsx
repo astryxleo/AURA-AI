@@ -370,13 +370,13 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
           // and message-level actions. Keep the content but make each ID unique per chat.
           while (seenMessageIds.has(id)) id = newId();
           seenMessageIds.add(id);
-          return { id, role: entry.role, content: entry.content, createdAt: Number.isFinite(entry.createdAt) ? entry.createdAt : Date.now() };
+          return { id, role: entry.role, content: entry.content, createdAt: typeof entry.createdAt === "number" && Number.isFinite(entry.createdAt) && entry.createdAt > 0 && entry.createdAt <= Date.now() + 24 * 60 * 60 * 1000 ? entry.createdAt : Date.now() };
         });
         return {
           id: typeof value.id === "string" && value.id ? value.id : newId() + "-" + index,
           title: value.title.trim().slice(0, 80) || "Imported conversation",
           messages,
-          updatedAt: Number.isFinite(value.updatedAt) ? value.updatedAt as number : Date.now(),
+          updatedAt: typeof value.updatedAt === "number" && Number.isFinite(value.updatedAt) && value.updatedAt > 0 && value.updatedAt <= Date.now() + 24 * 60 * 60 * 1000 ? value.updatedAt : Date.now(),
         };
       });
       if (!imported.length) throw new Error("This backup doesn't contain any conversations.");
