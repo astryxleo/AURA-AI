@@ -96,15 +96,17 @@ export default async function handler(req, res) {
   });
 
   try {
+    const deadline = Date.now() + 25_000;
     let lastStatus = 502;
     let lastMessage = "No provider error details were returned.";
-    for (let index = 0; index < candidateModels.length; index += 1) {
+    for (let index = 0; index < candidateModels.length && Date.now() < deadline; index += 1) {
       const activeModel = candidateModels[index];
       const url = "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(activeModel) + ":generateContent";
       const upstream = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
         body: requestBody,
+        signal: AbortSignal.timeout(Math.max(1000, Math.min(8000, deadline - Date.now()))),
       });
       const result = await upstream.json().catch(() => ({}));
       if (upstream.ok) {
