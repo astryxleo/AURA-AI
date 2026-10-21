@@ -116,6 +116,25 @@ body { overflow: hidden; }
 
 .storage-warning{max-width:100%;white-space:normal;line-height:1.45;padding:8px 10px;border-radius:8px}
 
+/* Narrow viewport overflow protection and compact composer layout. */
+.main-panel,.conversation,.composer-wrap,.topbar,.topbar-left,.topbar-right,.message-content,.settings-modal{min-width:0}
+.message-content,.markdown-content{overflow-wrap:anywhere}
+@media(max-width:480px){
+  .conversation{padding-left:12px;padding-right:12px}
+  .composer-wrap{padding-left:10px;padding-right:10px}
+  .composer-bottom{gap:8px;align-items:flex-end}
+  .composer-hint{min-width:0;flex-wrap:wrap;line-height:1.5}
+  .send-button{flex:0 0 auto}
+  .message-content pre,.markdown-content pre{max-width:100%;overflow-x:auto}
+}
+@media(max-width:340px){
+  .welcome h1{font-size:35px;letter-spacing:-1.5px}
+  .topbar{padding-left:9px;padding-right:9px}
+  .breadcrumb{max-width:36vw}
+  .composer{padding:8px}
+  .send-button{padding:8px}
+}
+
 /* Respect operating-system accessibility preferences for reduced motion. */
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{
