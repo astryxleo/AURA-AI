@@ -1,4 +1,9 @@
 const DEFAULT_MODEL = "gemini-3.8-flash";
+const AVAILABLE_MODELS = [
+  "gemini-3.8-flash",
+  "gemini-3.6-flash",
+  "gemini-3.5-flash-lite",
+];
 const MAX_MESSAGES = 24;
 const MAX_MESSAGE_CHARS = 12000;
 const MAX_TOTAL_CHARS = 50000;
@@ -58,9 +63,13 @@ export default async function handler(req, res) {
   }
 
   const body = req.body && typeof req.body === "object" ? req.body : {};
-  const model = typeof body.model === "string" && /^[a-zA-Z0-9._-]{1,80}$/.test(body.model)
+  const requestedModel = typeof body.model === "string" && AVAILABLE_MODELS.includes(body.model)
     ? body.model
     : DEFAULT_MODEL;
+  const candidateModels = [
+    requestedModel,
+    ...AVAILABLE_MODELS.filter((candidate) => candidate !== requestedModel),
+  ];
   const messages = Array.isArray(body.messages) ? body.messages.slice(-MAX_MESSAGES) : [];
   if (!messages.length) return send(res, 400, { error: "Add a message before sending." });
 
@@ -88,33 +97,43 @@ export default async function handler(req, res) {
   while (contents.length && contents[0].role !== "user") contents.shift();
   if (!contents.length) return send(res, 400, { error: "A user message is required." });
 
-  const candidateModels = [...new Set([model, "gemini-3.6-flash", "gemini-3.5-flash-lite"])];
   const requestBody = JSON.stringify({
     systemInstruction: systemParts.length ? { parts: [{ text: systemParts.join("\n\n") }] } : undefined,
     contents,
     generationConfig: { maxOutputTokens: 2048, temperature: 0.7 },
   });
 
-  try {
-    const deadline = Date.now() + 25_000;
-    let lastStatus = 502;
-    let lastMessage = "No provider error details were returned.";
-    for (let index = 0; index < candidateModels.length && Date.now() < deadline; index += 1) {
-      const activeModel = candidateModels[index];
-      const url = "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(activeModel) + ":generateContent";
+  const deadline = Date.now() + 25_000;
+  let lastStatus = 502;
+  let lastMessage = "No provider error details were returned.";
+  let sawRateLimit = false;
+  let sawTimeout = false;
+
+  for (const activeModel of candidateModels) {
+    const remaining = deadline - Date.now();
+    if (remaining < 1000) break;
+
+    const url = "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(activeModel) + ":generateContent";
+    try {
       const upstream = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
         body: requestBody,
-        signal: AbortSignal.timeout(Math.max(1000, Math.min(8000, deadline - Date.now()))),
+        signal: AbortSignal.timeout(Math.min(8000, remaining)),
       });
       const result = await upstream.json().catch(() => ({}));
+
       if (upstream.ok) {
         const answer = (result.candidates?.[0]?.content?.parts ?? [])
           .map((part) => typeof part.text === "string" ? part.text : "")
           .join("")
           .trim();
-        if (!answer) return send(res, 502, { error: "The AI provider returned an empty response. Please try again." });
+        if (!answer) {
+          lastStatus = 502;
+          lastMessage = "The provider returned an empty response.";
+          console.error("Gemini returned an empty response", { model: activeModel });
+          continue;
+        }
         return send(res, 200, { message: { role: "assistant", content: answer }, model: activeModel });
       }
 
@@ -122,6 +141,7 @@ export default async function handler(req, res) {
       lastMessage = typeof result.error?.message === "string"
         ? result.error.message.slice(0, 240)
         : "No provider error details were returned.";
+      if (upstream.status === 429) sawRateLimit = true;
       console.error("Gemini request failed", {
         status: upstream.status,
         code: result.error?.status ?? "unknown",
@@ -129,25 +149,31 @@ export default async function handler(req, res) {
         model: activeModel,
       });
 
-      // Try a stable alternative if the selected model is temporarily overloaded or unavailable.
+      // Retry only transient failures or model IDs unavailable to this API key.
       if (![429, 500, 502, 503, 504, 404].includes(upstream.status)) break;
+    } catch (error) {
+      lastStatus = 504;
+      sawTimeout = true;
+      lastMessage = error instanceof Error ? error.message.slice(0, 180) : "Provider request timed out.";
+      console.error("Gemini model request failed", { model: activeModel, message: lastMessage });
+      // A timeout or network error on one model should not prevent trying the next.
     }
-
-    if (lastStatus === 429) {
-      return send(res, 429, { error: "The AI provider is rate-limiting requests across available models. Please wait a minute and try again.", providerStatus: 429 });
-    }
-    if (lastStatus === 401 || lastStatus === 403) {
-      return send(res, 502, { error: "Gemini denied access (" + lastStatus + "). Check that GEMINI_API_KEY is valid and enabled for the Gemini API.", providerStatus: lastStatus });
-    }
-    if (lastStatus === 404) {
-      return send(res, 502, { error: "None of the configured Gemini models is available to this API key. Check model access in Google AI Studio.", providerStatus: 404 });
-    }
-    if (lastStatus >= 500) {
-      return send(res, 502, { error: "Gemini is temporarily unavailable across the configured models. Please retry shortly.", providerStatus: lastStatus, providerMessage: lastMessage });
-    }
-    return send(res, 502, { error: "Gemini rejected the request. Check the selected model and message format.", providerStatus: lastStatus, providerMessage: lastMessage });
-  } catch (error) {
-    console.error("Gemini connection failed", error instanceof Error ? error.message : "Unknown error");
-    return send(res, 502, { error: "AURA could not connect to the cloud AI provider. Please try again." });
   }
+
+  if (sawRateLimit) {
+    return send(res, 429, {
+      error: "The available Gemini models are rate-limited right now. Please wait a little and try again.",
+      providerStatus: 429,
+    });
+  }
+  if (lastStatus === 401 || lastStatus === 403) {
+    return send(res, 502, { error: "Gemini denied access. Check that GEMINI_API_KEY is valid and enabled for the Gemini API.", providerStatus: lastStatus });
+  }
+  if (lastStatus === 404) {
+    return send(res, 502, { error: "None of the configured Gemini models is available to this API key. Check model access in Google AI Studio.", providerStatus: 404 });
+  }
+  if (lastStatus >= 500 || sawTimeout) {
+    return send(res, 502, { error: "Gemini is temporarily unavailable across the configured models. Please retry shortly.", providerStatus: lastStatus, providerMessage: lastMessage });
+  }
+  return send(res, 502, { error: "Gemini rejected the request. Check the selected model and message format.", providerStatus: lastStatus, providerMessage: lastMessage });
 }
