@@ -101,13 +101,28 @@ export default async function handler(req, res) {
     });
     const result = await upstream.json().catch(() => ({}));
     if (!upstream.ok) {
-      const status = upstream.status === 429 ? 429 : 502;
-      const message = upstream.status === 429
-        ? "The AI provider is temporarily rate-limiting requests. Please wait a little and try again."
-        : upstream.status === 400
-          ? "The AI provider rejected this request. Check the model name in Settings."
-          : "The cloud AI provider could not complete the request. The site owner may need to check the API key and model access.";
-      return send(res, status, { error: message });
+      const providerMessage = typeof result.error?.message === "string"
+        ? result.error.message.slice(0, 240)
+        : "No provider error details were returned.";
+      console.error("Gemini request failed", {
+        status: upstream.status,
+        code: result.error?.status ?? "unknown",
+        message: providerMessage,
+        model,
+      });
+      if (upstream.status === 429) {
+        return send(res, 429, { error: "The AI provider is temporarily rate-limiting requests. Please wait a little and try again." });
+      }
+      if (upstream.status === 400) {
+        return send(res, 502, { error: "Gemini rejected the request (400). Check the selected model and message format.", providerStatus: 400 });
+      }
+      if (upstream.status === 401 || upstream.status === 403) {
+        return send(res, 502, { error: "Gemini denied access (" + upstream.status + "). Check that GEMINI_API_KEY is valid, enabled for the Gemini API, and unrestricted by incompatible API restrictions.", providerStatus: upstream.status });
+      }
+      if (upstream.status === 404) {
+        return send(res, 502, { error: "Gemini model not found (404). Select a model available to your API key.", providerStatus: 404 });
+      }
+      return send(res, 502, { error: "Gemini request failed with provider status " + upstream.status + ". Check the Vercel runtime logs for details.", providerStatus: upstream.status });
     }
     const answer = (result.candidates?.[0]?.content?.parts ?? [])
       .map((part) => typeof part.text === "string" ? part.text : "")
@@ -115,7 +130,8 @@ export default async function handler(req, res) {
       .trim();
     if (!answer) return send(res, 502, { error: "The AI provider returned an empty response. Please try again." });
     return send(res, 200, { message: { role: "assistant", content: answer } });
-  } catch {
+  } catch (error) {
+    console.error("Gemini connection failed", error instanceof Error ? error.message : "Unknown error");
     return send(res, 502, { error: "AURA could not connect to the cloud AI provider. Please try again." });
   }
 }
