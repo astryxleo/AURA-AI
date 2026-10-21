@@ -115,3 +115,13 @@ body { overflow: hidden; }
 @media(max-width:420px){.settings-tools{align-items:flex-start;flex-direction:column}.settings-tools .field-help{max-width:100%}}
 
 .storage-warning{max-width:100%;white-space:normal;line-height:1.45;padding:8px 10px;border-radius:8px}
+
+/* Respect operating-system accessibility preferences for reduced motion. */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{
+    animation-duration:0.01ms!important;
+    animation-iteration-count:1!important;
+    scroll-behavior:auto!important;
+    transition-duration:0.01ms!important;
+  }
+}
