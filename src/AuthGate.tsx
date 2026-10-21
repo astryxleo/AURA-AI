@@ -50,6 +50,21 @@ export default function AuthGate() {
     } finally { setBusy(false); }
   }
 
+  async function requestPasswordReset() {
+    if (!supabase) return;
+    if (!email.trim()) { setError("Enter your email address first."); return; }
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: window.location.origin,
+      });
+      if (resetError) throw resetError;
+      setNotice("If an account exists for that email, a password-reset link will be sent.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not request a password reset.");
+    } finally { setBusy(false); }
+  }
+
   async function signOut() {
     if (!supabase) return;
     const { error: authError } = await supabase.auth.signOut();
@@ -72,6 +87,7 @@ export default function AuthGate() {
         {mode === "signup" && <label>Full name<input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" placeholder="Your name" maxLength={80} required /></label>}
         <label>Email address<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" placeholder="you@example.com" required /></label>
         <label>Password<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === "signin" ? "current-password" : "new-password"} placeholder={mode === "signup" ? "At least 8 characters" : "Your password"} minLength={8} required /></label>
+        {mode === "signin" && <button className="auth-reset" type="button" disabled={busy} onClick={() => { void requestPasswordReset(); }}>Forgot password?</button>}
         {error && <div className="auth-error" role="alert">{error}</div>}
         {notice && <div className="auth-notice" role="status">{notice}</div>}
         <button className="auth-submit" type="submit" disabled={busy}>{busy ? "Please wait…" : mode === "signin" ? "Sign in securely" : "Create account"} <span>↗</span></button>
