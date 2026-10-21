@@ -19,14 +19,18 @@ export default function AuthGate() {
   useEffect(() => {
     if (!supabase) { setReady(true); return; }
     let active = true;
-    supabase.auth.getSession().then(({ data }) => {
-      if (active) { setSession(data.session); setReady(true); }
-    }).catch(() => { if (active) setReady(true); });
+    let authEventReceived = false;
     const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      authEventReceived = true;
       if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
       setSession(nextSession);
       setReady(true);
     });
+    supabase.auth.getSession().then(({ data }) => {
+      // Avoid overwriting a newer sign-in/sign-out event with a stale session snapshot.
+      if (active && !authEventReceived) setSession(data.session);
+      if (active) setReady(true);
+    }).catch(() => { if (active) setReady(true); });
     return () => { active = false; listener.subscription.unsubscribe(); };
   }, []);
 
