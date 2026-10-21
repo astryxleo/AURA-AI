@@ -37,4 +37,4 @@ Email/password sign-up may require email confirmation depending on the Auth sett
 5. Test sign-up email confirmation and password reset flows before inviting users.
 
 ## Current limitation
-The connected Supabase integration does not currently have permission to the AURA project, so the migration has been committed to GitHub but has **not** been executed against the live database. The Vercel project currently has only the Gemini environment variable; add the two Supabase client variables before sign-in can work.
+**Project status (21 October 2026):** The project owner reports that the migration was successfully run in the AURA Supabase SQL Editor and that `VITE_SUPABASE_URL` plus `VITE_SUPABASE_PUBLISHABLE_KEY` are configured in Vercel Production. The code is committed to `main`, but a recent Vercel deployment was blocked by the free daily deployment limit. The live sign-in flow is therefore not considered verified until a deployment containing the latest auth commits succeeds. Confirm the same two variables are also set for Preview if Preview deployments are used.
