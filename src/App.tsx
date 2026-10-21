@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent } from "react";
-import { BookOpen, Check, ChevronDown, Cpu, FileText, LogOut, Menu, MessageSquare, Plus, Send, Settings2, Sparkles, Trash2, Upload, X, Zap } from "lucide-react";
+import { BookOpen, Check, ChevronDown, Cpu, FileText, LogOut, Menu, MessageSquare, Pencil, Plus, Send, Settings2, Sparkles, Trash2, Upload, X, Zap } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import { supabase } from "./lib/supabase";
 
@@ -240,6 +240,22 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
     window.setTimeout(() => inputRef.current?.focus(), 50);
   }
 
+  function renameChat(id: string) {
+    const target = chats.find((chat) => chat.id === id);
+    if (!target) return;
+    const entered = window.prompt("Rename conversation", target.title);
+    if (entered === null) return;
+    const title = entered.trim().slice(0, 80);
+    if (!title) {
+      setError("Conversation names can't be empty.");
+      return;
+    }
+    setError("");
+    setChats((previous) => previous.map((chat) => chat.id === id
+      ? { ...chat, title, updatedAt: Date.now() }
+      : chat));
+  }
+
   function updateActive(messages: Message[], title?: string) {
     if (!activeChat) return;
     setChats((previous) => previous.map((chat) => chat.id === activeChat.id
@@ -438,6 +454,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
               <button className="chat-pick" onClick={() => { setActiveId(chat.id); setSidebarOpen(false); setError(""); }}>
                 <MessageSquare size={15} /><span>{chat.title}</span>
               </button>
+              <button className="rename-chat" aria-label={"Rename " + chat.title} title="Rename conversation" disabled={deletingChatId !== null} onClick={() => renameChat(chat.id)}><Pencil size={13} /></button>
               <button className="delete-chat" aria-label={"Delete " + chat.title} title="Delete conversation" disabled={deletingChatId !== null} onClick={() => { void deleteChat(chat.id); }}><Trash2 size={14} /></button>
             </div>
           )) : <div className="chat-search-empty">{chatSearch.trim() ? "No conversations match your search." : "No conversations yet."}</div>}
