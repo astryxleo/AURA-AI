@@ -243,7 +243,9 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
   const requestAbortRef = useRef<AbortController | null>(null);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const [settingsOpen, setSettingsOpen] = useState(false);\n  const [accountNotice, setAccountNotice] = useState("");\n  const [accountBusy, setAccountBusy] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [accountNotice, setAccountNotice] = useState("");
+  const [accountBusy, setAccountBusy] = useState(false);
   const [promptLibraryOpen, setPromptLibraryOpen] = useState(false);
   const [promptSearch, setPromptSearch] = useState("");
   const [customPrompts, setCustomPrompts] = useState<PromptTemplate[]>(() => loadJson<PromptTemplate[]>("aura.custom-prompts.v1." + userId, []));
