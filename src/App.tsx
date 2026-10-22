@@ -278,6 +278,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   useEffect(() => {
     // Never push a stale browser cache after cloud restore failed; wait for Retry sync.
     if (!cloudLoaded || cloudRestoreFailed || !supabase || !chats.length) return;
+    const cloudClient = supabase;
     const syncVersion = ++cloudSyncVersionRef.current;
     setCloudSync("saving");
     const rows = chats.map((chat) => ({
@@ -289,7 +290,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
     }));
     // Serialize cloud writes so an older save cannot overtake a later delete.
     const queuedSave = cloudWriteQueueRef.current.catch(() => undefined).then(async () => {
-      const { error: cloudError } = await supabase.from("aura_chats").upsert(rows, { onConflict: "id" });
+      const { error: cloudError } = await cloudClient.from("aura_chats").upsert(rows, { onConflict: "id" });
       if (cloudError) throw cloudError;
     });
     cloudWriteQueueRef.current = queuedSave;
@@ -698,9 +699,10 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
     const deleteSyncVersion = supabase ? ++cloudSyncVersionRef.current : cloudSyncVersionRef.current;
     try {
       if (supabase) {
+        const cloudClient = supabase;
         // Queue deletion after any in-flight save; subsequent state saves will run after it.
         const queuedDelete = cloudWriteQueueRef.current.catch(() => undefined).then(async () => {
-          const { error: cloudError } = await supabase.from("aura_chats").delete().eq("id", id).eq("user_id", userId);
+          const { error: cloudError } = await cloudClient.from("aura_chats").delete().eq("id", id).eq("user_id", userId);
           if (cloudError) throw cloudError;
         });
         cloudWriteQueueRef.current = queuedDelete;
