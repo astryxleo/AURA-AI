@@ -768,8 +768,15 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
         while (true) {
           const { value, done } = await reader.read();
           if (done) break;
-          answer += decoder.decode(value, { stream: true });
-          updateTargetChat([...nextMessages, { ...assistantMessage, content: answer }]);
+          const incomingText = decoder.decode(value, { stream: true });
+          // Reveal streamed text progressively instead of painting each network chunk all at once.
+          for (const character of incomingText) {
+            if (controller.signal.aborted) break;
+            answer += character;
+            updateTargetChat([...nextMessages, { ...assistantMessage, content: answer }]);
+            await new Promise<void>((resolve) => window.setTimeout(resolve, 8));
+          }
+          if (controller.signal.aborted) break;
         }
         answer += decoder.decode();
       } finally {
