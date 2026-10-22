@@ -638,3 +638,16 @@ body{background:#070710;color:#f5f2ff}
 .sidebar-desktop-toggle{display:grid}
 @media(max-width:680px){.sidebar{width:min(290px,85vw)!important;flex-basis:min(290px,85vw)!important}.sidebar-resize-handle{display:none}.sidebar-desktop-toggle{display:none}.sidebar-hidden .sidebar{display:flex}.sidebar-hidden .sidebar:not(.sidebar-open){transform:translateX(-105%)}}
 @media(prefers-reduced-motion:reduce){.sidebar{transition:none}}
+
+
+/* Account identity and portability tools */
+.account-detail-row .icon-button{margin-left:auto;flex:0 0 auto;width:30px;height:30px}
+.account-action-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:14px 0 10px}
+.account-action-grid button{display:flex;align-items:center;justify-content:flex-start;gap:9px;min-height:42px;min-width:0;padding:10px 12px;border:1px solid #ffffff12;border-radius:10px;background:linear-gradient(135deg,#ffffff08,#ffffff03);color:#d7d3e4;font-size:11px;text-align:left;transition:border-color .16s,background .16s,transform .16s}
+.account-action-grid button svg{flex:0 0 auto;color:#b6a0f6}
+.account-action-grid button:hover:not(:disabled){border-color:#a78bfa66;background:#a78bfa12;transform:translateY(-1px)}
+.account-action-grid button:disabled{opacity:.5;cursor:wait}
+.account-action-notice{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:8px 0;padding:10px 12px;border:1px solid #7b68bd44;border-radius:9px;background:#a78bfa0c;color:#d7cafa;font-size:11px;line-height:1.5}
+.account-action-notice button{display:grid;place-items:center;flex:0 0 auto;width:24px;height:24px;border:0;border-radius:6px;background:transparent;color:#c9b9ef;cursor:pointer}
+.account-security-note{line-height:1.65;margin:10px 0 14px}
+@media(max-width:420px){.account-action-grid{grid-template-columns:1fr}.account-action-grid button{min-height:39px}}
