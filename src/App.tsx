@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties, FormEvent, KeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
+import type { FormEvent, KeyboardEvent } from "react";
 import { BookOpen, Check, ChevronDown, Copy, Cpu, FileText, LogOut, Menu, MessageSquare, Pencil, Pin, Plus, Send, Download, FileUp, CopyPlus, Settings2, Sparkles, Trash2, Upload, X, Zap, PanelLeftClose, PanelLeftOpen, Share2, ShieldCheck, ArchiveRestore, KeyRound } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import { supabase } from "./lib/supabase";
@@ -260,19 +260,6 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
       window.localStorage.setItem("aura.sidebar-hidden.v1", JSON.stringify(sidebarHidden));
     } catch { /* Keep the current layout for this session if storage is unavailable. */ }
   }, [sidebarWidth, sidebarHidden]);
-  function startSidebarResize(event: ReactPointerEvent<HTMLDivElement>) {
-    if (event.pointerType === "mouse" && event.button !== 0) return;
-    sidebarResizeRef.current = { startX: event.clientX, startWidth: sidebarWidth };
-    event.currentTarget.setPointerCapture(event.pointerId);
-    event.preventDefault();
-  }
-  function moveSidebarResize(event: ReactPointerEvent<HTMLDivElement>) {
-    if (!sidebarResizeRef.current) return;
-    setSidebarWidth(Math.round(Math.max(190, Math.min(360, sidebarResizeRef.current.startWidth + event.clientX - sidebarResizeRef.current.startX))));
-  }
-  function stopSidebarResize() {
-    sidebarResizeRef.current = null;
-  }
   const [connection, setConnection] = useState<"unknown" | "online" | "offline">("unknown");
   const [networkOnline, setNetworkOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -1098,7 +1085,7 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
 
   return (
     <div className={`app-shell ${sidebarHidden ? "sidebar-hidden" : ""}`}>
-      <aside className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`} style={{ width: sidebarWidth, flexBasis: sidebarWidth, "--sidebar-scale": String(sidebarWidth / 258) } as CSSProperties}>
+      <aside className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`} style={{ width: sidebarWidth, flexBasis: sidebarWidth, "--sidebar-scale": String(sidebarWidth / 258) } as import("react").CSSProperties}>
         <div className="brand-row">
           <div className="brand-mark"><Sparkles size={21} strokeWidth={1.8} /></div>
           <div className="brand-copy"><span>AURA</span><small>PERSONAL INTELLIGENCE</small></div>
@@ -1132,7 +1119,7 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
           <button className="icon-button" aria-label="Open settings" title="Settings" onClick={() => setSettingsOpen(true)}><Settings2 size={18} /></button>
           <button className="icon-button" aria-label="Sign out" title="Sign out" onClick={onSignOut}><LogOut size={18} /></button>
         </div>
-        <div className="sidebar-resize-handle" role="separator" aria-orientation="vertical" aria-label="Resize navigation sidebar" aria-valuemin={190} aria-valuemax={360} aria-valuenow={sidebarWidth} tabIndex={0} onPointerDown={startSidebarResize} onPointerMove={moveSidebarResize} onPointerUp={stopSidebarResize} onPointerCancel={stopSidebarResize} onLostPointerCapture={stopSidebarResize} onKeyDown={(event) => { if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.preventDefault(); setSidebarWidth((width) => Math.max(190, Math.min(360, width + (event.key === "ArrowRight" ? 12 : -12)))); } }} />
+        <div className="sidebar-resize-handle" role="separator" aria-orientation="vertical" aria-label="Resize navigation sidebar" aria-valuemin={190} aria-valuemax={360} aria-valuenow={sidebarWidth} tabIndex={0} onPointerDown={(event) => { if (event.pointerType === "mouse" && event.button !== 0) return; sidebarResizeRef.current = { startX: event.clientX, startWidth: sidebarWidth }; event.currentTarget.setPointerCapture(event.pointerId); event.preventDefault(); }} onPointerMove={(event) => { if (!sidebarResizeRef.current) return; setSidebarWidth(Math.round(Math.max(190, Math.min(360, sidebarResizeRef.current.startWidth + event.clientX - sidebarResizeRef.current.startX)))); }} onPointerUp={() => { sidebarResizeRef.current = null; }} onPointerCancel={() => { sidebarResizeRef.current = null; }} onLostPointerCapture={() => { sidebarResizeRef.current = null; }} onKeyDown={(event) => { if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.preventDefault(); setSidebarWidth((width) => Math.max(190, Math.min(360, width + (event.key === "ArrowRight" ? 12 : -12)))); } }} />
       </aside>
 
       {sidebarOpen && <button className="scrim" aria-label="Close navigation" onClick={() => setSidebarOpen(false)} />}
