@@ -712,3 +712,10 @@ body{background:#070710;color:#f5f2ff}
 @media (prefers-reduced-motion: reduce) {
   *::-webkit-scrollbar-thumb { transition: none; }
 }
+
+
+/* AURA brand asset: keep the uploaded wordmark crisp in the sidebar and chat identity. */
+.brand-mark{overflow:hidden;padding:0;background:#08090c;border:1px solid #9b72ff55;}
+.brand-mark img{display:block;width:100%;height:100%;object-fit:cover;border-radius:inherit;}
+.message-avatar.assistant{overflow:hidden;padding:0;background:#08090c;}
+.message-avatar.assistant img{display:block;width:100%;height:100%;object-fit:cover;border-radius:inherit;}
