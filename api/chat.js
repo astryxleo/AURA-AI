@@ -95,7 +95,7 @@ export default async function handler(req, res) {
 
   let upstream;
   try {
-    upstream = await fetch("https://id-preview--4a390f19-1f20-4aa7-a371-e7eed318fedf.lovable.app/api/public/ai", {
+    upstream = await fetch("https://aura-replier.lovable.app/api/public/ai", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -115,6 +115,9 @@ export default async function handler(req, res) {
     console.error("AURA relay request rejected", { status: upstream.status, code: relayError });
     if (upstream.status === 401 || upstream.status === 403 || relayError === "invalid_api_key") {
       return send(res, 502, { error: "AURA AI authentication is not configured correctly. The site owner should check the relay API key." });
+    }
+    if (upstream.status === 402 || relayError === "ai_credits_exhausted") {
+      return send(res, 503, { error: "AURA AI is temporarily out of service. Please try again later." });
     }
     if (upstream.status === 429) {
       res.setHeader("Retry-After", "30");
