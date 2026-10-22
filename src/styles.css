@@ -262,3 +262,23 @@ body { overflow: hidden; }
     transition-duration:0.01ms!important;
   }
 }
+
+
+/* In-app confirmation for destructive actions; never use the browser's native confirm popup. */
+.delete-confirm-backdrop{z-index:80}
+.delete-confirm-modal{width:min(100%,420px);padding:27px;background:linear-gradient(150deg,#15141d,#0f1016);border:1px solid #39303f;border-radius:17px;box-shadow:0 28px 100px #000b;animation:delete-dialog-in .16s ease-out}
+.delete-confirm-icon{width:43px;height:43px;display:grid;place-items:center;border:1px solid #653b45;border-radius:12px;background:#2a171d;color:#f0a6b2;margin-bottom:18px}
+.delete-confirm-kicker{font:9px var(--mono);letter-spacing:1.4px;color:#e39aa8}
+.delete-confirm-modal h2{font:700 22px var(--heading);letter-spacing:-.5px;color:#f0edf8;margin:9px 0 10px}
+.delete-confirm-modal p{font-size:12px;line-height:1.8;color:#a3a2b2;overflow-wrap:anywhere;margin:0}
+.delete-confirm-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:25px}
+.delete-confirm-actions button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;padding:9px 12px;border-radius:8px;font-size:11px;font-weight:600;transition:background .16s,border-color .16s,opacity .16s}
+.delete-confirm-cancel{border:1px solid #343541;background:#171820;color:#c7c5d3}
+.delete-confirm-cancel:hover:not(:disabled){background:#22232d;border-color:#50515e}
+.delete-confirm-submit{border:1px solid #b85e70;background:linear-gradient(120deg,#c96578,#a9445b);color:#fff4f5}
+.delete-confirm-submit:hover:not(:disabled){background:linear-gradient(120deg,#d87587,#b94b63)}
+.delete-confirm-actions button:focus-visible{outline:2px solid #b6a0ff;outline-offset:2px}
+.delete-confirm-actions button:disabled{opacity:.55;cursor:not-allowed}
+@keyframes delete-dialog-in{from{opacity:0;transform:translateY(5px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(max-width:420px){.delete-confirm-modal{padding:22px}.delete-confirm-actions{flex-direction:column-reverse}.delete-confirm-actions button{width:100%}}
+@media(prefers-reduced-motion:reduce){.delete-confirm-modal{animation:none}}
