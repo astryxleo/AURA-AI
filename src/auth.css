@@ -27,13 +27,6 @@
 
 .auth-reset{justify-self:end;border:0;background:none;color:#b9a4ff;font:inherit;font-size:11px;cursor:pointer;padding:0 1px}.auth-reset:hover{text-decoration:underline}.auth-reset:disabled{opacity:.5;cursor:wait}
 
-/* Login page scrolling and third-party sign-in */
-.auth-divider{display:flex;align-items:center;gap:12px;margin:19px 0;color:#777387;font:9px var(--mono);letter-spacing:1px}
-.auth-divider span:first-child,.auth-divider span:last-child{height:1px;flex:1;background:rgba(255,255,255,.09)}
-.auth-google{width:100%;min-height:46px;display:flex;align-items:center;justify-content:center;gap:11px;border:1px solid #3b3749;border-radius:11px;background:#121119;color:#eeeaf7;font-size:13px;font-weight:650;transition:background .18s,border-color .18s}
-.auth-google:hover:not(:disabled){background:#1c1926;border-color:#71618f}
-.auth-google:focus-visible{outline:2px solid #b6a0ff;outline-offset:3px}
-.auth-google:disabled{opacity:.6;cursor:wait}
-.google-mark{width:20px;height:20px;display:grid;place-items:center;border-radius:50%;background:#fff;color:#4285f4;font:bold 15px Arial,sans-serif}
+/* Compact viewport spacing */
 @media(max-height:720px){.auth-screen{padding-top:12px;padding-bottom:12px}.auth-logo{margin-bottom:16px}.auth-card>p{margin-bottom:18px}.auth-foot{margin-top:17px;padding-top:12px}}
 @media(max-width:380px){.auth-screen{padding-left:10px;padding-right:10px}.auth-card{padding:22px 18px}.auth-form{gap:13px}}
