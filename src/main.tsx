@@ -16,7 +16,6 @@ function StartupIntro() {
     if (finishedRef.current) return;
     finishedRef.current = true;
     setPhase("black");
-    // Fade to black, hold briefly, then reveal the dashboard.
     window.setTimeout(() => setPhase("revealing"), 700);
     window.setTimeout(() => setVisible(false), 1550);
   }, []);
@@ -25,13 +24,11 @@ function StartupIntro() {
     const video = videoRef.current;
     if (!video) return;
 
-    // Keep the existing app mounted underneath the intro. If media fails, fail open.
     const fallback = window.setTimeout(finish, 9000);
     const attemptPlayback = async () => {
       try {
         await video.play();
       } catch {
-        // Browsers may block autoplay with audio; try muted playback and offer sound on demand.
         video.muted = true;
         try {
           await video.play();
