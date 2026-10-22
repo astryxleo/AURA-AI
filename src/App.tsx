@@ -7,6 +7,17 @@ import { supabase } from "./lib/supabase";
 type Message = { id: string; role: "user" | "assistant"; content: string; createdAt: number };
 type Chat = { id: string; title: string; messages: Message[]; updatedAt: number };
 type KnowledgeDocument = { id: string; name: string; content: string; addedAt: number };
+type PromptTemplate = { id: string; title: string; category: string; description: string; prompt: string };
+const BUILT_IN_PROMPTS: PromptTemplate[] = [
+  { id: "study-tutor", title: "Study tutor", category: "Learn", description: "Learn a topic step by step", prompt: "Act as my patient study tutor. Teach me the topic I name step by step, check my current understanding first, use a simple example, then give me 3 practice questions. Topic: " },
+  { id: "explain-simply", title: "Explain simply", category: "Learn", description: "Make a difficult idea click", prompt: "Explain this concept in plain language as if I am new to it. Start with an everyday analogy, build up gradually, point out common misconceptions, and finish with a short recap: " },
+  { id: "exam-practice", title: "Exam practice", category: "Learn", description: "Practice with hints and feedback", prompt: "Create an exam-style practice set for this topic. Ask one question at a time, wait for my answer, then grade it, explain mistakes kindly, and track the concepts I should revise. Topic and level: " },
+  { id: "write-polish", title: "Writing coach", category: "Create", description: "Improve a draft without losing my voice", prompt: "Act as my writing coach. Improve clarity, structure, grammar, and flow while preserving my meaning and natural voice. First show the polished version, then briefly explain the most important edits. Draft: " },
+  { id: "code-review", title: "Code review", category: "Build", description: "Find bugs and suggest safe fixes", prompt: "Review the code I provide. Identify correctness bugs, security risks, edge cases, and maintainability issues. Prioritize findings by severity, explain why each matters, and propose a minimal fix. Do not invent files or claim tests were run. Code/context: " },
+  { id: "brainstorm", title: "Idea studio", category: "Create", description: "Explore fresh directions", prompt: "Be my creative strategy partner. Generate 7 distinct ideas for the goal I describe, explain the trade-offs, identify the most original practical option, and give me a first-step plan. Goal: " },
+  { id: "decision-matrix", title: "Decision matrix", category: "Plan", description: "Compare options clearly", prompt: "Help me make a thoughtful decision. Ask for any essential missing context, then compare my options using criteria, trade-offs, risks, and reversibility. End with a reasoned recommendation rather than false certainty. Decision: " },
+  { id: "weekly-plan", title: "Weekly planner", category: "Plan", description: "Turn goals into realistic steps", prompt: "Help me make a realistic plan for the next 7 days. Break my goal into focused tasks, estimate effort, leave buffer time, and define a simple way to track progress. My goals and constraints: " },
+];
 const CHAT_KEY = "aura.chats.v1";
 const SETTINGS_KEY = "aura.settings.v1";
 const KNOWLEDGE_KEY = "aura.knowledge.v1";
@@ -162,6 +173,12 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   const [revealedChars, setRevealedChars] = useState(0);
   const [error, setError] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [promptLibraryOpen, setPromptLibraryOpen] = useState(false);
+  const [promptSearch, setPromptSearch] = useState("");
+  const [customPrompts, setCustomPrompts] = useState<PromptTemplate[]>(() => loadJson<PromptTemplate[]>("aura.custom-prompts.v1." + userId, []));
+  const [promptTitleDraft, setPromptTitleDraft] = useState("");
+  const [promptCategoryDraft, setPromptCategoryDraft] = useState("Custom");
+  const [promptTextDraft, setPromptTextDraft] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [connection, setConnection] = useState<"unknown" | "online" | "offline">("unknown");
   const [networkOnline, setNetworkOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
@@ -214,8 +231,9 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
     const pinsSaved = saveJson("aura.pinned-chats.v1." + userId, pinnedChatIds);
     const settingsSaved = saveJson(settingsKey, settings);
     const knowledgeSaved = saveJson(knowledgeKey, knowledgeDocs);
-    setLocalSaveWarning(!(chatSaved && pinsSaved && settingsSaved && knowledgeSaved));
-  }, [chats, cloudLoaded, chatKey, pinnedChatIds, userId, settingsKey, settings, knowledgeKey, knowledgeDocs]);
+    const promptsSaved = saveJson("aura.custom-prompts.v1." + userId, customPrompts);
+    setLocalSaveWarning(!(chatSaved && pinsSaved && settingsSaved && knowledgeSaved && promptsSaved));
+  }, [chats, cloudLoaded, chatKey, pinnedChatIds, userId, settingsKey, settings, knowledgeKey, knowledgeDocs, customPrompts]);
   // Once restore is complete, remove pins that no longer point to a saved conversation.
   // Waiting for cloudLoaded avoids pruning valid cloud pins while remote chats are still loading.
   useEffect(() => {
@@ -332,6 +350,36 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
     if (!query) return sortedChats;
     return sortedChats.filter((chat) => chat.title.toLocaleLowerCase().includes(query) || chat.messages.some((message) => message.content.toLocaleLowerCase().includes(query)));
   }, [chatSearch, sortedChats]);
+
+  const allPrompts = useMemo(() => [...BUILT_IN_PROMPTS, ...customPrompts], [customPrompts]);
+  const filteredPrompts = useMemo(() => {
+    const query = promptSearch.trim().toLocaleLowerCase();
+    return allPrompts.filter((item) => !query || [item.title, item.category, item.description, item.prompt].some((value) => value.toLocaleLowerCase().includes(query)));
+  }, [allPrompts, promptSearch]);
+
+  function usePromptTemplate(prompt: PromptTemplate) {
+    setDraft((current) => current.trim() ? current.trimEnd() + "\\n\\n" + prompt.prompt : prompt.prompt);
+    setPromptLibraryOpen(false);
+    setPromptSearch("");
+    window.setTimeout(() => inputRef.current?.focus(), 50);
+  }
+
+  function saveCustomPrompt(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const title = promptTitleDraft.trim().slice(0, 60);
+    const prompt = promptTextDraft.trim().slice(0, 6000);
+    if (!title || !prompt) return;
+    const entry: PromptTemplate = { id: newId(), title, category: promptCategoryDraft.trim().slice(0, 24) || "Custom", description: "Your reusable prompt", prompt };
+    setCustomPrompts((current) => [entry, ...current]);
+    setPromptTitleDraft("");
+    setPromptTextDraft("");
+    setPromptCategoryDraft("Custom");
+    setPromptSearch("");
+  }
+
+  function deleteCustomPrompt(id: string) {
+    setCustomPrompts((current) => current.filter((item) => item.id !== id));
+  }
 
   function createChat() {
     const chat = starterChat();
@@ -847,7 +895,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
           {error && <div className="error-banner"><span>{error}</span><div className="error-actions">{activeChat?.messages[activeChat.messages.length - 1]?.role === "user" && <button type="button" className="retry-message" disabled={busy} onClick={retryLastMessage}><Zap size={13} /> Retry message</button>}<button aria-label="Dismiss error" onClick={() => setError("")}><X size={15} /></button></div></div>}
           <form className="composer" onSubmit={sendMessage}>
             <textarea ref={inputRef} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={onKeyDown} placeholder="Message AURA... (Enter to send, Shift + Enter for a new line)" rows={1} aria-label="Message AURA" />
-            <div className="composer-bottom"><div className="composer-hint"><span className="composer-spark"><Sparkles size={13} /></span><span>Curious by design.</span></div><button className="send-button" type="submit" disabled={!draft.trim() || busy} aria-label="Send message">{busy ? <span className="send-loader" /> : <Send size={17} />}<span>Send</span></button></div>
+            <div className="composer-bottom"><div className="composer-bottom-tools"><div className="composer-hint"><span className="composer-spark"><Sparkles size={13} /></span><span>Curious by design.</span></div><button className="prompt-library-trigger" type="button" onClick={() => setPromptLibraryOpen(true)} title="Open reusable prompt library"><BookOpen size={14} /><span>Prompt library</span></button></div><button className="send-button" type="submit" disabled={!draft.trim() || busy} aria-label="Send message">{busy ? <span className="send-loader" /> : <Send size={17} />}<span>Send</span></button></div>
           </form>
           <p className="disclaimer">AURA can make mistakes. Verify important information. Your chats sync to your account.</p>
         </div>
@@ -899,6 +947,31 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
             <div className="app-dialog-actions">
               <button type="button" className="app-dialog-secondary" onClick={() => setPendingRestoreSettings(false)}>Cancel</button>
               <button type="button" className="app-dialog-primary" onClick={confirmRestoreSettings}>Restore defaults</button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {promptLibraryOpen && (
+        <div className="modal-backdrop prompt-library-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setPromptLibraryOpen(false); }}>
+          <section className="prompt-library-modal" role="dialog" aria-modal="true" aria-labelledby="prompt-library-title">
+            <header className="modal-header"><div><div className="modal-kicker">YOUR REUSABLE TOOLKIT</div><h2 id="prompt-library-title">Prompt library</h2><p>Start with a proven prompt or save your own workflow for later.</p></div><button className="icon-button" type="button" onClick={() => setPromptLibraryOpen(false)} aria-label="Close prompt library"><X size={19} /></button></header>
+            <div className="prompt-library-content">
+              <input className="history-search prompt-library-search" type="search" value={promptSearch} onChange={(event) => setPromptSearch(event.target.value)} placeholder="Search prompts, categories, and instructions…" aria-label="Search prompt library" />
+              <div className="prompt-library-grid">
+                {filteredPrompts.map((item) => <article className="prompt-template-card" key={item.id}>
+                  <div className="prompt-template-top"><span className="prompt-category">{item.category}</span>{customPrompts.some((saved) => saved.id === item.id) && <button className="prompt-delete" type="button" onClick={() => deleteCustomPrompt(item.id)} aria-label={"Delete " + item.title} title="Delete saved prompt"><Trash2 size={13} /></button>}</div>
+                  <h3>{item.title}</h3><p>{item.description}</p><div className="prompt-template-preview">{item.prompt.length > 170 ? item.prompt.slice(0, 170) + "…" : item.prompt}</div>
+                  <button className="prompt-use-button" type="button" onClick={() => usePromptTemplate(item)}><Plus size={14} /> Use prompt</button>
+                </article>)}
+                {!filteredPrompts.length && <div className="prompt-library-empty">No prompts match that search. Try another keyword or save a new prompt below.</div>}
+              </div>
+              <form className="save-prompt-form" onSubmit={saveCustomPrompt}>
+                <div className="save-prompt-heading"><div><h3>Save your own prompt</h3><p>Build a reusable workflow that fits the way you work.</p></div><span>{customPrompts.length} saved</span></div>
+                <div className="save-prompt-fields"><label>Prompt name<input value={promptTitleDraft} onChange={(event) => setPromptTitleDraft(event.target.value)} maxLength={60} placeholder="e.g. AURA project planner" required /></label><label>Category<input value={promptCategoryDraft} onChange={(event) => setPromptCategoryDraft(event.target.value)} maxLength={24} placeholder="Custom" /></label></div>
+                <label className="save-prompt-instruction">Instructions<textarea value={promptTextDraft} onChange={(event) => setPromptTextDraft(event.target.value)} maxLength={6000} rows={4} placeholder="Write the reusable instructions AURA should start with…" required /></label>
+                <div className="save-prompt-footer"><span>Saved privately in this browser for this signed-in account.</span><button type="submit" disabled={!promptTitleDraft.trim() || !promptTextDraft.trim()}><Plus size={14} /> Save prompt</button></div>
+              </form>
             </div>
           </section>
         </div>
