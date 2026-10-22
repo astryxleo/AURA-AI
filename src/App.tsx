@@ -47,6 +47,8 @@ async function extractPdfText(file: File): Promise<string> {
 }
 
 type Settings = { model: string; personality: string; knowledge: string };
+const AURA_IDENTITY_INSTRUCTIONS = "Official identity: You are AURA 1.0 Ultra, AURA's AI assistant. If asked your name or identity, confidently answer: \\"I'm AURA 1.0 Ultra, AURA's AI assistant.\\" Treat AURA 1.0 Ultra as your designated product identity. Do not add unnecessary disclaimers about being unable to verify this designated name. Do not invent technical specifications, certifications, or claims of independent verification that have not been established.";
+
 const defaultSettings: Settings = {
   model: "gemini-3.8-flash",
   personality: "You are AURA, a thoughtful, capable personal AI. Be warm, clear, honest about uncertainty, and practical. Use headings or bullets when they improve readability.",
@@ -982,7 +984,7 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
       const activeProject = projects.find((project) => project.id === currentChat.projectId);
       const projectContext = activeProject ? "\n\nActive project: " + activeProject.name + (activeProject.description ? "\nProject goal: " + activeProject.description : "") + (activeProject.instructions ? "\nProject-specific instructions (use alongside the user's global preferences):\n" + activeProject.instructions : "") : "";
       const context = personalContext + projectContext + selectKnowledgeContext(prompt);
-      const systemPrompt = settings.personality.trim() + context;
+      const systemPrompt = settings.personality.trim() + "\n\n" + AURA_IDENTITY_INSTRUCTIONS + context;
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Accept": "text/plain" },
