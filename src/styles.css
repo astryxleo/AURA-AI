@@ -878,3 +878,10 @@ input:focus,textarea:focus,select:focus{
 @media(prefers-reduced-motion:reduce){
   .aura-intro-overlay,.aura-intro-video{transition:none}
 }
+
+
+/* Fix: do not let the intro entrance animation override the exit fade transition. */
+.aura-intro-overlay{animation:none!important;will-change:opacity}
+.aura-intro-overlay.aura-intro-playing{opacity:1}
+.aura-intro-overlay.aura-intro-black{opacity:1;background:#000}
+.aura-intro-overlay.aura-intro-revealing{opacity:0;pointer-events:none}
