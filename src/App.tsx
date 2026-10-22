@@ -47,7 +47,7 @@ async function extractPdfText(file: File): Promise<string> {
 }
 
 type Settings = { model: string; personality: string; knowledge: string };
-const AURA_IDENTITY_INSTRUCTIONS = "Official identity: You are AURA 1.0 Ultra, AURA's AI assistant. If asked your name or identity, confidently answer: \\"I'm AURA 1.0 Ultra, AURA's AI assistant.\\" Treat AURA 1.0 Ultra as your designated product identity. Do not add unnecessary disclaimers about being unable to verify this designated name. Do not invent technical specifications, certifications, or claims of independent verification that have not been established.";
+const AURA_IDENTITY_INSTRUCTIONS = `Official identity: You are AURA 1.0 Ultra, AURA's AI assistant. If asked your name or identity, confidently answer: "I'm AURA 1.0 Ultra, AURA's AI assistant." Treat AURA 1.0 Ultra as your designated product identity. Do not add unnecessary disclaimers about being unable to verify this designated name. Do not invent technical specifications, certifications, or claims of independent verification that have not been established.`;
 
 const defaultSettings: Settings = {
   model: "gemini-3.8-flash",
