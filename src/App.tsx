@@ -322,10 +322,13 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
   const hasMessages = Boolean(activeChat?.messages.length);
 
   useEffect(() => {
+    // Keep the landing hero still on initial load and while a new chat is empty.
+    // Once the user sends a message, scroll only the transcript pane as it grows.
+    if (!hasMessages) return;
     const conversation = conversationRef.current;
     if (!conversation) return;
     conversation.scrollTo({ top: conversation.scrollHeight, behavior: "smooth" });
-  }, [activeId, activeChat?.messages.length, busy, streamingMessageId]);
+  }, [hasMessages, activeId, activeChat?.messages.length, busy, streamingMessageId]);
 
   useEffect(() => {
     const chatSaved = !cloudLoaded || saveJson(chatKey, chats.filter((chat) => chat.messages.length > 0));
@@ -1203,7 +1206,7 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
           </div>
         </header>
 
-        <section ref={conversationRef} className="conversation" aria-live="polite">
+        <section ref={conversationRef} className={`conversation ${hasMessages ? "has-messages" : "welcome-state"}`} aria-live="polite">
           {!hasMessages ? (
             <div className="welcome">
               <div className="welcome-icon"><Sparkles size={28} /></div>
