@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent } from "react";
-import { BookOpen, Check, ChevronDown, Copy, Cpu, FileText, LogOut, Menu, MessageSquare, Pencil, Pin, Plus, Send, Download, FileUp, CopyPlus, Settings2, Sparkles, Trash2, Upload, X, Zap } from "lucide-react";
+import { BookOpen, Check, ChevronDown, Copy, Cpu, FileText, LogOut, Menu, MessageSquare, Pencil, Pin, Plus, Send, Download, FileUp, CopyPlus, Settings2, Sparkles, Trash2, Upload, X, Zap, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import { supabase } from "./lib/supabase";
 
@@ -191,6 +191,28 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   const [promptCategoryDraft, setPromptCategoryDraft] = useState("Custom");
   const [promptTextDraft, setPromptTextDraft] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(() => Math.max(190, Math.min(360, loadJson<number>("aura.sidebar-width.v1", 258))));
+  const [sidebarHidden, setSidebarHidden] = useState(() => loadJson<boolean>("aura.sidebar-hidden.v1", false));
+  const sidebarResizeRef = useRef<{ startX: number; startWidth: number } | null>(null);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("aura.sidebar-width.v1", String(sidebarWidth));
+      window.localStorage.setItem("aura.sidebar-hidden.v1", JSON.stringify(sidebarHidden));
+    } catch { /* Keep the current layout for this session if storage is unavailable. */ }
+  }, [sidebarWidth, sidebarHidden]);
+  function startSidebarResize(event: React.PointerEvent<HTMLDivElement>) {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    sidebarResizeRef.current = { startX: event.clientX, startWidth: sidebarWidth };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  }
+  function moveSidebarResize(event: React.PointerEvent<HTMLDivElement>) {
+    if (!sidebarResizeRef.current) return;
+    setSidebarWidth(Math.round(Math.max(190, Math.min(360, sidebarResizeRef.current.startWidth + event.clientX - sidebarResizeRef.current.startX))));
+  }
+  function stopSidebarResize() {
+    sidebarResizeRef.current = null;
+  }
   const [connection, setConnection] = useState<"unknown" | "online" | "offline">("unknown");
   const [networkOnline, setNetworkOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -945,7 +967,8 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
       <main className="main-panel">
         <header className="topbar">
           <div className="topbar-left">
-            <button className="icon-button menu-toggle" aria-label="Open navigation" onClick={() => setSidebarOpen(true)}><Menu size={20} /></button>
+            <button className="icon-button menu-toggle" aria-label="Open navigation" title="Open navigation" onClick={() => setSidebarOpen(true)}><Menu size={20} /></button>
+            <button className="icon-button sidebar-desktop-toggle" aria-label={sidebarHidden ? "Show navigation" : "Hide navigation"} title={sidebarHidden ? "Show navigation" : "Hide navigation"} onClick={() => setSidebarHidden((hidden) => !hidden)}>{sidebarHidden ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}</button>
             <div className="breadcrumb">Workspace <span>/</span> <strong>{hasMessages ? activeChat?.title : "New conversation"}</strong></div>
           </div>
           <div className="topbar-right">
