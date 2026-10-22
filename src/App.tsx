@@ -135,11 +135,12 @@ function normalizeChat(value: unknown): Chat | null {
   };
 }
 
-export default function App({ userId, userEmail, onSignOut }: { userId: string; userEmail: string; onSignOut: () => void }) {
+export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn = false }: { userId: string; userEmail: string; onSignOut: () => void; startNewChatOnSignIn?: boolean }) {
   const chatKey = CHAT_KEY + "." + userId;
   const settingsKey = SETTINGS_KEY + "." + userId;
   const knowledgeKey = KNOWLEDGE_KEY + "." + userId;
   const [cloudLoaded, setCloudLoaded] = useState(false);
+  const createdSignInChatRef = useRef(false);
   const [cloudRestoreFailed, setCloudRestoreFailed] = useState(false);
   const cloudWriteQueueRef = useRef<Promise<void>>(Promise.resolve());
   const cloudSyncVersionRef = useRef(0);
@@ -280,6 +281,18 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   }, [chats, cloudLoaded]);
 
   useEffect(() => { if (!activeId && chats[0]) setActiveId(chats[0].id); }, [activeId, chats]);
+  useEffect(() => {
+    if (!startNewChatOnSignIn || !cloudLoaded || createdSignInChatRef.current) return;
+    createdSignInChatRef.current = true;
+    const freshChat = starterChat();
+    setChats((current) => [freshChat, ...current]);
+    setActiveId(freshChat.id);
+    setActiveProjectFilter(null);
+    setDraft("");
+    setError("");
+    setRetryPrompt(null);
+    setRetryChatId(null);
+  }, [startNewChatOnSignIn, cloudLoaded]);
 
   useEffect(() => {
     let cancelled = false;
