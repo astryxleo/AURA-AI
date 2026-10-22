@@ -282,3 +282,27 @@ body { overflow: hidden; }
 @keyframes delete-dialog-in{from{opacity:0;transform:translateY(5px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
 @media(max-width:420px){.delete-confirm-modal{padding:22px}.delete-confirm-actions{flex-direction:column-reverse}.delete-confirm-actions button{width:100%}}
 @media(prefers-reduced-motion:reduce){.delete-confirm-modal{animation:none}}
+
+
+/* Shared AURA-native dialogs for rename and settings confirmation. */
+.app-dialog-backdrop{z-index:85}
+.app-dialog-modal{width:min(100%,430px);padding:27px;background:linear-gradient(150deg,#15141d,#0f1016);border:1px solid #39303f;border-radius:17px;box-shadow:0 28px 100px #000b;animation:delete-dialog-in .16s ease-out}
+.app-dialog-icon{width:42px;height:42px;display:grid;place-items:center;border:1px solid #484064;border-radius:12px;background:#211c32;color:#c7b8ff;margin-bottom:17px}
+.app-dialog-icon.restore{border-color:#544833;background:#292316;color:#e9c98b}
+.app-dialog-kicker{font:9px var(--mono);letter-spacing:1.35px;color:#b9a5f8}
+.app-dialog-modal h2{font:700 22px var(--heading);letter-spacing:-.5px;color:#f0edf8;margin:9px 0 10px}
+.app-dialog-modal p{font-size:12px;line-height:1.8;color:#a3a2b2;margin:0 0 19px}
+.app-dialog-label{display:block;margin:0 0 8px;color:#c8c5d4;font-size:11px;font-weight:600}
+.app-dialog-input{box-sizing:border-box;width:100%;min-height:43px;padding:11px 12px;border:1px solid #3b3949;border-radius:8px;background:#0c0d13;color:#f2efff;font:inherit;font-size:12px;outline:none}
+.app-dialog-input:focus{border-color:#8f78d4;box-shadow:0 0 0 3px #8f78d426}
+.app-dialog-input::placeholder{color:#686777}
+.app-dialog-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:23px}
+.app-dialog-actions button{display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:9px 13px;border:1px solid transparent;border-radius:8px;font-size:11px;font-weight:600;transition:background .16s,border-color .16s,opacity .16s}
+.app-dialog-secondary{border-color:#343541!important;background:#171820;color:#c7c5d3}
+.app-dialog-secondary:hover{background:#22232d;border-color:#50515e!important}
+.app-dialog-primary{border-color:#6652a3!important;background:linear-gradient(120deg,#7962bf,#5c4698);color:#fff}
+.app-dialog-primary:hover:not(:disabled){background:linear-gradient(120deg,#8a72d0,#6a53ad)}
+.app-dialog-primary:disabled{opacity:.45;cursor:not-allowed}
+.app-dialog-actions button:focus-visible{outline:2px solid #b6a0ff;outline-offset:2px}
+@media(max-width:420px){.app-dialog-modal{padding:22px}.app-dialog-actions{flex-direction:column-reverse}.app-dialog-actions button{width:100%}}
+@media(prefers-reduced-motion:reduce){.app-dialog-modal{animation:none}}
