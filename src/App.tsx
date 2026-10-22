@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { FormEvent, KeyboardEvent } from "react";
+import type { CSSProperties, FormEvent, KeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
 import { BookOpen, Check, ChevronDown, Copy, Cpu, FileText, LogOut, Menu, MessageSquare, Pencil, Pin, Plus, Send, Download, FileUp, CopyPlus, Settings2, Sparkles, Trash2, Upload, X, Zap, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import { supabase } from "./lib/supabase";
@@ -200,7 +200,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
       window.localStorage.setItem("aura.sidebar-hidden.v1", JSON.stringify(sidebarHidden));
     } catch { /* Keep the current layout for this session if storage is unavailable. */ }
   }, [sidebarWidth, sidebarHidden]);
-  function startSidebarResize(event: React.PointerEvent<HTMLDivElement>) {
+  function startSidebarResize(event: ReactPointerEvent<HTMLDivElement>) {
     if (event.pointerType === "mouse" && event.button !== 0) return;
     sidebarResizeRef.current = { startX: event.clientX, startWidth: sidebarWidth };
     event.currentTarget.setPointerCapture(event.pointerId);
