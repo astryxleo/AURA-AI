@@ -95,6 +95,21 @@ export default function AuthGate() {
     } finally { setBusy(false); }
   }
 
+  async function signInWithGoogle() {
+    if (!supabase) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const { error: authError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: window.location.origin },
+      });
+      if (authError) throw authError;
+    } catch (caught) {
+      setError(friendlyAuthError(caught, "Google sign-in could not start. Check the Google provider settings and try again."));
+      setBusy(false);
+    }
+  }
+
   async function signOut() {
     if (!supabase) return;
     const { error: authError } = await supabase.auth.signOut();
@@ -124,6 +139,11 @@ export default function AuthGate() {
         {notice && <div className="auth-notice" role="status">{notice}</div>}
         <button className="auth-submit" type="submit" disabled={busy}>{busy ? "Please wait…" : mode === "signin" ? "Sign in securely" : "Create account"} <span>↗</span></button>
       </form>
+      <div className="auth-divider"><span /> <span>OR CONTINUE WITH</span> <span /></div>
+      <button className="auth-google" type="button" onClick={() => { void signInWithGoogle(); }} disabled={busy}>
+        <span className="google-mark" aria-hidden="true">G</span>
+        {busy ? "Connecting…" : "Continue with Google"}
+      </button>
       <div className="auth-switch">{mode === "signin" ? "New to AURA?" : "Already have an account?"} <button type="button" onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setPassword(""); setNewPassword(""); setError(""); setNotice(""); }}>{mode === "signin" ? "Create account" : "Sign in"}</button></div>
       <div className="auth-foot">Your account is private. Never share your password.</div>
     </div>
