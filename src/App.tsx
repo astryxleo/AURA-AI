@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, FormEvent, KeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
-import { BookOpen, Check, ChevronDown, Copy, Cpu, FileText, LogOut, Menu, MessageSquare, Pencil, Pin, Plus, Send, Download, FileUp, CopyPlus, Settings2, Sparkles, Trash2, Upload, X, Zap, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { BookOpen, Check, ChevronDown, Copy, Cpu, FileText, LogOut, Menu, MessageSquare, Pencil, Pin, Plus, Send, Download, FileUp, CopyPlus, Settings2, Sparkles, Trash2, Upload, X, Zap, PanelLeftClose, PanelLeftOpen, Share2, ShieldCheck, ArchiveRestore, KeyRound } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import { supabase } from "./lib/supabase";
 
@@ -184,7 +184,7 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
   const requestAbortRef = useRef<AbortController | null>(null);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);\n  const [accountNotice, setAccountNotice] = useState("");\n  const [accountBusy, setAccountBusy] = useState(false);
   const [promptLibraryOpen, setPromptLibraryOpen] = useState(false);
   const [promptSearch, setPromptSearch] = useState("");
   const [customPrompts, setCustomPrompts] = useState<PromptTemplate[]>(() => loadJson<PromptTemplate[]>("aura.custom-prompts.v1." + userId, []));
@@ -461,6 +461,54 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
     if (!activeChat) return;
     setChats((current) => current.map((chat) => chat.id === activeChat.id ? { ...chat, projectId: projectId || undefined, updatedAt: Date.now() } : chat));
     if (activeProjectFilter !== null && projectId !== activeProjectFilter) setActiveId("");
+  }
+
+  async function copyAccountId() {
+    try { await navigator.clipboard.writeText(userId); setAccountNotice("Account ID copied."); }
+    catch { setAccountNotice("Copy isn't available in this browser. Select the Account ID to copy it manually."); }
+  }
+
+  async function shareAccountProfile() {
+    const profile = `AURA account profile\\nEmail: ${userEmail || "Not available"}\\nAccount ID: ${userId}\\n\\nThis ID identifies my AURA account; it does not grant account access.`;
+    try {
+      if (navigator.share) { await navigator.share({ title: "My AURA account", text: profile }); setAccountNotice("Share sheet opened."); }
+      else { await navigator.clipboard.writeText(profile); setAccountNotice("Account profile copied, ready to share."); }
+    } catch (caught) {
+      if (caught instanceof Error && caught.name === "AbortError") return;
+      setAccountNotice("Sharing isn't available here. Use Copy ID instead.");
+    }
+  }
+
+  function exportAccountData() {
+    const backup = {
+      format: "aura-account-backup", version: 1, exportedAt: new Date().toISOString(),
+      sourceAccountId: userId, chats: sortedChats, settings,
+      projects, knowledgeDocs, customPrompts,
+      pinnedChatIds
+    };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "aura-account-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+    document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+    setAccountNotice("Full account backup exported. Keep the file private.");
+  }
+
+  async function sendAccountRecoveryEmail() {
+    if (!supabase || !userEmail) { setAccountNotice("Account recovery is unavailable because your email or account service is missing."); return; }
+    setAccountBusy(true);
+    const { error: recoveryError } = await supabase.auth.resetPasswordForEmail(userEmail, { redirectTo: window.location.origin });
+    setAccountBusy(false);
+    setAccountNotice(recoveryError ? "Recovery email couldn't be sent right now. Try again later." : "If recovery is enabled, a password reset link has been sent to your email.");
+  }
+
+  async function signOutEverywhere() {
+    if (!supabase) { setAccountNotice("Global session management is unavailable."); return; }
+    setAccountBusy(true);
+    const { error: signOutError } = await supabase.auth.signOut({ scope: "global" });
+    setAccountBusy(false);
+    if (signOutError) { setAccountNotice("Couldn't end all sessions. Please try again."); return; }
+    onSignOut();
   }
 
   function exportChats() {
@@ -1158,9 +1206,20 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
                   <div className="account-detail-row">
                     <span className="account-detail-label">Account ID</span>
                     <strong className="account-id-value" title={userId}>{userId}</strong>
+                    <button type="button" className="icon-button" onClick={() => { void copyAccountId(); }} aria-label="Copy account ID" title="Copy account ID"><Copy size={14} /></button>
                   </div>
                 </div>
-                <button type="button" className="account-settings-signout" onClick={onSignOut}><LogOut size={15} /> Sign out of AURA</button>
+                <div className="account-action-grid">
+                  <button type="button" onClick={() => { void copyAccountId(); }}><Copy size={15} /><span>Copy ID</span></button>
+                  <button type="button" onClick={() => { void shareAccountProfile(); }}><Share2 size={15} /><span>Share profile</span></button>
+                  <button type="button" onClick={exportAccountData}><Download size={15} /><span>Export all data</span></button>
+                  <button type="button" onClick={() => chatImportRef.current?.click()}><ArchiveRestore size={15} /><span>Import / transfer</span></button>
+                  <button type="button" disabled={accountBusy} onClick={() => { void sendAccountRecoveryEmail(); }}><KeyRound size={15} /><span>{accountBusy ? "Please wait…" : "Recover account"}</span></button>
+                  <button type="button" disabled={accountBusy} onClick={() => { void signOutEverywhere(); }}><ShieldCheck size={15} /><span>Sign out all devices</span></button>
+                </div>
+                {accountNotice && <div className="account-action-notice" role="status">{accountNotice}<button type="button" onClick={() => setAccountNotice("")} aria-label="Dismiss account notice"><X size={13} /></button></div>}
+                <p className="field-help account-security-note">Your Account ID is an identifier, not a password. Never share backup files with people you don't trust. “Sign out all devices” revokes active sessions through your account service.</p>
+                <button type="button" className="account-settings-signout" onClick={onSignOut}><LogOut size={15} /> Sign out of this device</button>
               </section>
               <div className="field-divider" />
               <div className="settings-tools"><span className="field-help">Changes save automatically for this account on this browser.</span><button type="button" className="settings-reset" onClick={resetSettingsToDefaults}>Restore defaults</button></div>
