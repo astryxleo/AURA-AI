@@ -3,6 +3,7 @@ import type { FormEvent, KeyboardEvent } from "react";
 import { BookOpen, Check, ChevronDown, Copy, Cpu, FileText, LogOut, Menu, MessageSquare, Pencil, Pin, Plus, Send, Download, FileUp, CopyPlus, Settings2, Sparkles, Trash2, Upload, X, Zap, PanelLeftClose, PanelLeftOpen, Share2, ShieldCheck, ArchiveRestore, KeyRound } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import { supabase } from "./lib/supabase";
+import auraLogo from "../aura.png";
 
 type Message = { id: string; role: "user" | "assistant"; content: string; createdAt: number };
 type Chat = { id: string; title: string; messages: Message[]; updatedAt: number; projectId?: string };
@@ -195,6 +196,23 @@ function normalizeChat(value: unknown): Chat | null {
 }
 
 export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn = false }: { userId: string; userEmail: string; onSignOut: () => void; startNewChatOnSignIn?: boolean }) {
+  useEffect(() => {
+    const icons = [
+      { rel: "icon", type: "image/png" },
+      { rel: "apple-touch-icon", type: "image/png" },
+    ];
+    for (const spec of icons) {
+      let link = document.head.querySelector<HTMLLinkElement>(`link[rel="${spec.rel}"]`);
+      if (!link) {
+        link = document.createElement("link");
+        link.rel = spec.rel;
+        document.head.appendChild(link);
+      }
+      link.type = spec.type;
+      link.href = auraLogo;
+    }
+  }, []);
+
   const chatKey = CHAT_KEY + "." + userId;
   const settingsKey = SETTINGS_KEY + "." + userId;
   const knowledgeKey = KNOWLEDGE_KEY + "." + userId;
@@ -1089,7 +1107,7 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
     <div className={`app-shell ${sidebarHidden ? "sidebar-hidden" : ""}`}>
       <aside className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`} style={{ width: sidebarWidth, flexBasis: sidebarWidth, "--sidebar-scale": String(sidebarWidth / 258) } as import("react").CSSProperties}>
         <div className="brand-row">
-          <div className="brand-mark"><Sparkles size={21} strokeWidth={1.8} /></div>
+          <div className="brand-mark"><img src={auraLogo} alt="" aria-hidden="true" /></div>
           <div className="brand-copy"><span>AURA</span><small>PERSONAL INTELLIGENCE</small></div>
           <button className="icon-button mobile-close" aria-label="Close sidebar" onClick={() => setSidebarOpen(false)}><X size={18} /></button>
         </div>
@@ -1175,7 +1193,7 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
                   </div>
                 </article>
               ))}
-              {busy && activeChat?.messages.every((message) => message.id !== streamingMessageId) && <article className="message-row assistant"><div className="message-avatar assistant"><Sparkles size={17} /></div><div className="message-body"><div className="message-label">AURA</div><div className="typing"><span /><span /><span /> <small>Starting</small></div></div></article>}
+              {busy && activeChat?.messages.every((message) => message.id !== streamingMessageId) && <article className="message-row assistant"><div className="message-avatar assistant"><img src={auraLogo} alt="" aria-hidden="true" /></div><div className="message-body"><div className="message-label">AURA</div><div className="typing"><span /><span /><span /> <small>Starting</small></div></div></article>}
               <div className="end-spacer" />
             </div>
           )}
