@@ -52,7 +52,7 @@ const defaultSettings: Settings = {
   knowledge: "",
 };
 function renderInline(text: string, keyPrefix: string) {
-  const normalized = text.replace(/\\([*_#~[\]()])/g, "$1");
+  const normalized = text.replace(/\\([*_#~()])/g, "$1");
   const tokens = normalized.split(/(\[[^\]]+\]\(https?:\/\/[^)\s]+\)|\*\*[\s\S]+?\*\*|__[\s\S]+?__|~~[\s\S]+?~~|\*[^*\n]+\*|_[^_\n]+_|\x60[^\x60]+\x60)/g).filter(Boolean);
   return tokens.map((token, index) => {
     const key = keyPrefix + "-" + index;
@@ -67,7 +67,7 @@ function renderInline(text: string, keyPrefix: string) {
 }
 
 function MarkdownContent({ content }: { content: string }) {
-  const normalized = content.replace(/\r\n?/g, "\n").replace(/\\([*_#~[\]()])/g, "$1").trim();
+  const normalized = content.replace(/\r\n?/g, "\n").replace(/\\([*_#~()])/g, "$1").trim();
   const lines = normalized.split("\n");
   const blocks: Array<{ type: string; lines: string[]; language?: string }> = [];
   let index = 0;
