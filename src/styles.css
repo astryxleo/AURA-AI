@@ -953,3 +953,9 @@ html:has(.aura-intro-overlay) body * { cursor: none !important; }
   .conversation.welcome-state .welcome > p { margin: 8px 0; }
   .conversation.welcome-state .suggestion-grid { margin-top: 12px; }
 }
+
+
+/* AURA custom cursor: keep the supplied Windows cursor visible and aligned everywhere. */
+html, body, body *, #root, #root * {
+  cursor: url("/cursor%20(7).cur") 0 0, auto !important;
+}
