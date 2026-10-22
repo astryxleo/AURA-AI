@@ -7,6 +7,7 @@ import "./auth.css";
 
 function StartupIntro() {
   const [visible, setVisible] = useState(true);
+  const [phase, setPhase] = useState<"playing" | "black" | "revealing">("playing");
   const [needsAudioTap, setNeedsAudioTap] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const finishedRef = useRef(false);
@@ -14,7 +15,10 @@ function StartupIntro() {
   const finish = useCallback(() => {
     if (finishedRef.current) return;
     finishedRef.current = true;
-    setVisible(false);
+    setPhase("black");
+    // Fade to black, hold briefly, then reveal the dashboard.
+    window.setTimeout(() => setPhase("revealing"), 700);
+    window.setTimeout(() => setVisible(false), 1550);
   }, []);
 
   useEffect(() => {
@@ -57,10 +61,10 @@ function StartupIntro() {
   if (!visible) return null;
 
   return (
-    <div className="aura-intro-overlay" role="status" aria-label="AURA AI is initializing">
+    <div className={`aura-intro-overlay aura-intro-${phase}`} role="status" aria-label="AURA AI is initializing">
       <video
         ref={videoRef}
-        className="aura-intro-video"
+        className={`aura-intro-video ${phase === "playing" ? "" : "aura-intro-video-hidden"}`}
         src={auraIntroVideo}
         autoPlay
         playsInline
