@@ -135,6 +135,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   const [cloudRetryToken, setCloudRetryToken] = useState(0);
   const [localSaveWarning, setLocalSaveWarning] = useState(false);
   const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
+  const [pendingDeleteChat, setPendingDeleteChat] = useState<Chat | null>(null);
   const [chats, setChats] = useState<Chat[]>(() => loadJson<Chat[]>(chatKey, [starterChat()]));
   const latestChatsRef = useRef(chats);
   useEffect(() => { latestChatsRef.current = chats; }, [chats]);
@@ -692,7 +693,6 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   async function deleteChat(id: string) {
     const target = chats.find((chat) => chat.id === id);
     if (!target || deletingChatId) return;
-    if (!window.confirm(`Delete "${target.title}"? This removes the conversation from your workspace.`)) return;
     setDeletingChatId(id);
     setError("");
     // Invalidate any older save callback so it cannot overwrite this operation's status.
@@ -762,7 +762,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
               <button className={`pin-chat ${pinnedChatIds.includes(chat.id) ? "pinned" : ""}`} aria-label={(pinnedChatIds.includes(chat.id) ? "Unpin " : "Pin ") + chat.title} title={pinnedChatIds.includes(chat.id) ? "Unpin conversation" : "Pin conversation"} onClick={() => togglePinnedChat(chat.id)}><Pin size={13} /></button>
               <button className="duplicate-chat" aria-label={"Duplicate " + chat.title} title="Duplicate conversation" disabled={deletingChatId !== null} onClick={() => duplicateChat(chat.id)}><CopyPlus size={13} /></button>
               <button className="rename-chat" aria-label={"Rename " + chat.title} title="Rename conversation" disabled={deletingChatId !== null} onClick={() => renameChat(chat.id)}><Pencil size={13} /></button>
-              <button className="delete-chat" aria-label={"Delete " + chat.title} title="Delete conversation" disabled={deletingChatId !== null} onClick={() => { void deleteChat(chat.id); }}><Trash2 size={14} /></button>
+              <button className="delete-chat" aria-label={"Delete " + chat.title} title="Delete conversation" disabled={deletingChatId !== null} onClick={() => setPendingDeleteChat(chat)}><Trash2 size={14} /></button>
             </div>
           )) : <div className="chat-search-empty">{chatSearch.trim() ? "No conversations match your search." : "No conversations yet."}</div>}
         </div>
@@ -839,6 +839,23 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
           <p className="disclaimer">AURA can make mistakes. Verify important information. Your chats sync to your account.</p>
         </div>
       </main>
+
+      {pendingDeleteChat && (
+        <div className="modal-backdrop delete-confirm-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !deletingChatId) setPendingDeleteChat(null); }}>
+          <section className="delete-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-confirm-title" aria-describedby="delete-confirm-description">
+            <div className="delete-confirm-icon"><Trash2 size={20} /></div>
+            <div className="delete-confirm-kicker">PERMANENT ACTION</div>
+            <h2 id="delete-confirm-title">Delete this conversation?</h2>
+            <p id="delete-confirm-description">“{pendingDeleteChat.title}” will be removed from your workspace and synced chat history. This action can’t be undone.</p>
+            <div className="delete-confirm-actions">
+              <button type="button" className="delete-confirm-cancel" disabled={deletingChatId !== null} onClick={() => setPendingDeleteChat(null)}>Cancel</button>
+              <button type="button" className="delete-confirm-submit" disabled={deletingChatId !== null} onClick={async () => { await deleteChat(pendingDeleteChat.id); setPendingDeleteChat(null); }}>
+                <Trash2 size={14} /> {deletingChatId ? "Deleting…" : "Delete conversation"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {settingsOpen && (
         <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSettingsOpen(false); }}>
