@@ -534,9 +534,10 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
       if (!parsed || typeof parsed !== "object" || !("chats" in parsed) || !Array.isArray((parsed as { chats: unknown }).chats)) {
         throw new Error("This file doesn't look like an AURA chat backup.");
       }
-      const backupMetadata = parsed as { format?: unknown; version?: unknown; chats: unknown[] };
-      // Accept older chat exports without metadata, but reject explicitly unsupported formats/versions.
-      if (backupMetadata.format !== undefined && backupMetadata.format !== "aura-chat-backup") {
+      const backupMetadata = parsed as { format?: unknown; version?: unknown; chats: unknown[]; settings?: unknown; projects?: unknown; knowledgeDocs?: unknown; customPrompts?: unknown; pinnedChatIds?: unknown };
+      const isAccountBackup = backupMetadata.format === "aura-account-backup";
+      // Accept legacy chat backups and complete AURA account backups.
+      if (backupMetadata.format !== undefined && backupMetadata.format !== "aura-chat-backup" && !isAccountBackup) {
         throw new Error("This backup was created by an unsupported format.");
       }
       if (backupMetadata.version !== undefined && backupMetadata.version !== 1) {
@@ -598,6 +599,26 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
         }
         return [...merged.values()].sort((left, right) => right.updatedAt - left.updatedAt);
       });
+      if (isAccountBackup) {
+        if (backupMetadata.settings && typeof backupMetadata.settings === "object") {
+          const restored = backupMetadata.settings as Partial<Settings>;
+          setSettings({ ...defaultSettings, personality: typeof restored.personality === "string" ? restored.personality.slice(0, 20000) : defaultSettings.personality, knowledge: typeof restored.knowledge === "string" ? restored.knowledge.slice(0, 20000) : "", model: defaultSettings.model });
+        }
+        if (Array.isArray(backupMetadata.projects)) {
+          const restoredProjects = backupMetadata.projects.filter((item): item is AuraProject => Boolean(item) && typeof item === "object" && typeof (item as AuraProject).name === "string" && typeof (item as AuraProject).instructions === "string").slice(0, 200);
+          setProjects(restoredProjects.map((project) => ({ ...project, id: newId() })));
+        }
+        if (Array.isArray(backupMetadata.knowledgeDocs)) {
+          const restoredDocs = backupMetadata.knowledgeDocs.filter((item): item is KnowledgeDocument => Boolean(item) && typeof item === "object" && typeof (item as KnowledgeDocument).name === "string" && typeof (item as KnowledgeDocument).content === "string").slice(0, 100);
+          setKnowledgeDocs(restoredDocs.map((doc) => ({ ...doc, id: newId(), content: doc.content.slice(0, 500000) })));
+        }
+        if (Array.isArray(backupMetadata.customPrompts)) {
+          const restoredPrompts = backupMetadata.customPrompts.filter((item): item is PromptTemplate => Boolean(item) && typeof item === "object" && typeof (item as PromptTemplate).title === "string" && typeof (item as PromptTemplate).prompt === "string").slice(0, 200);
+          setCustomPrompts(restoredPrompts.map((prompt) => ({ ...prompt, id: newId() })));
+        }
+        if (Array.isArray(backupMetadata.pinnedChatIds)) setPinnedChatIds(backupMetadata.pinnedChatIds.filter((id): id is string => typeof id === "string").slice(0, 1000));
+        setAccountNotice("Account data imported. Your current account ID stays unchanged.");
+      }
       setActiveId(safeImported[0].id);
       setChatSearch("");
       setSidebarOpen(false);
