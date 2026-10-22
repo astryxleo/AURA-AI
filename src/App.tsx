@@ -1200,7 +1200,7 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
           </div>
           <div className="topbar-right">
             {activeChat && <label className="active-project-picker" title="Organize this conversation in a project"><BookOpen size={14} /><select aria-label="Conversation project" value={activeChat.projectId ?? ""} onChange={(event) => moveActiveChatToProject(event.target.value)}><option value="">No project</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>}
-            <div className={`connection ${connection}`}><span className="status-dot" />{connection === "online" ? "Model connected" : connection === "offline" ? "Model offline" : "Cloud AI"}</div>
+            <div className={`connection ${connection}`}><span className="status-dot" />{connection === "online" ? "Model connected" : connection === "offline" ? "Model offline" : "AURA-1.0 Ultra"}</div>
             {!networkOnline && <div className="connection offline" role="status" aria-live="polite"><span className="status-dot" />No internet connection</div>}
             {localSaveWarning && <div className="connection offline storage-warning" role="status" aria-live="polite"><span className="status-dot" />Browser storage is full or unavailable. Export a chat backup to protect recent changes.</div>}
             <div className={`connection ${cloudSync === "error" ? "offline" : cloudSync === "saved" ? "online" : "unknown"}`} role="status" aria-live="polite"><span className="status-dot" />{cloudSync === "loading" ? "Loading history" : cloudSync === "saving" ? "Syncing chats" : cloudSync === "saved" ? "Chats synced" : cloudSync === "local" ? "Browser storage" : "Sync issue"}</div>
