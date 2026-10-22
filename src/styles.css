@@ -849,3 +849,12 @@ input:focus,textarea:focus,select:focus{
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
+
+
+/* Full-screen startup video; app/auth stays mounted beneath it. */
+.aura-intro-overlay{position:fixed;inset:0;z-index:99999;background:#050509;display:grid;place-items:center;overflow:hidden;animation:aura-intro-in .25s ease-out both}
+.aura-intro-video{display:block;width:100%;height:100%;object-fit:cover;background:#050509}
+.aura-intro-audio{position:absolute;right:20px;bottom:20px;padding:10px 14px;border:1px solid rgba(205,190,255,.45);border-radius:9px;background:rgba(12,10,20,.82);color:#f4efff;font:12px 'DM Mono',monospace;backdrop-filter:blur(12px)}
+.aura-intro-audio:focus-visible{outline:2px solid #b6a0ff;outline-offset:3px}
+@keyframes aura-intro-in{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){.aura-intro-overlay{animation:none}}
