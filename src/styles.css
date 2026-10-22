@@ -20,3 +20,9 @@ html:has(.aura-intro-overlay) .aura-intro-overlay{cursor:none!important}
 .aura-intro-overlay.aura-intro-revealing{opacity:0;pointer-events:none}
 @keyframes aura-intro-in{from{opacity:0}to{opacity:1}}
 @media(prefers-reduced-motion:reduce){.aura-intro-overlay,.aura-intro-video{animation:none;transition:none}}
+
+
+/* Startup intro sound-toggle hint */
+.aura-intro-sound-hint{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);padding:8px 12px;border:1px solid rgba(205,190,255,.22);border-radius:9px;background:rgba(8,7,13,.55);color:rgba(244,239,255,.76);font:10px 'DM Mono',monospace;letter-spacing:.2px;white-space:nowrap;backdrop-filter:blur(10px);pointer-events:none;cursor:none!important}
+.aura-intro-sound-hint kbd{display:inline-grid;place-items:center;min-width:20px;height:20px;margin:0 3px;padding:0 5px;border:1px solid rgba(205,190,255,.42);border-radius:5px;background:rgba(182,160,255,.14);color:#f4efff;font:11px 'DM Mono',monospace}
+@media(max-width:480px){.aura-intro-sound-hint{bottom:16px;font-size:9px}}
