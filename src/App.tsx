@@ -237,7 +237,8 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
   const [projectDescriptionDraft, setProjectDescriptionDraft] = useState("");
   const [projectInstructionsDraft, setProjectInstructionsDraft] = useState("");
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
-  const [chats, setChats] = useState<Chat[]>(() => loadJson<Chat[]>(chatKey, [starterChat()]));
+  const [chats, setChats] = useState<Chat[]>(() => loadJson<Chat[]>(chatKey, []).filter((chat) => Array.isArray(chat.messages) && chat.messages.length > 0));
+  const draftChatRef = useRef<Chat>(starterChat());
   const latestChatsRef = useRef(chats);
   useEffect(() => { latestChatsRef.current = chats; }, [chats]);
   const [chatSearch, setChatSearch] = useState("");
@@ -317,7 +318,7 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
     input.style.height = "auto";
     input.style.height = `${Math.min(input.scrollHeight, 180)}px`;
   }, [draft]);
-  const activeChat = chats.find((chat) => chat.id === activeId) ?? chats[0];
+  const activeChat = chats.find((chat) => chat.id === activeId) ?? chats[0] ?? draftChatRef.current;
   const hasMessages = Boolean(activeChat?.messages.length);
 
   useEffect(() => {
@@ -327,7 +328,7 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
   }, [activeId, activeChat?.messages.length, busy, streamingMessageId]);
 
   useEffect(() => {
-    const chatSaved = !cloudLoaded || saveJson(chatKey, chats);
+    const chatSaved = !cloudLoaded || saveJson(chatKey, chats.filter((chat) => chat.messages.length > 0));
     const pinsSaved = saveJson("aura.pinned-chats.v1." + userId, pinnedChatIds);
     const settingsSaved = saveJson(settingsKey, settings);
     const knowledgeSaved = saveJson(knowledgeKey, knowledgeDocs);
@@ -351,7 +352,7 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
     if (!startNewChatOnSignIn || !cloudLoaded || createdSignInChatRef.current) return;
     createdSignInChatRef.current = true;
     const freshChat = starterChat();
-    setChats((current) => [freshChat, ...current]);
+    draftChatRef.current = freshChat;
     setActiveId(freshChat.id);
     setActiveProjectFilter(null);
     setDraft("");
@@ -392,8 +393,8 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
             const localChat = merged.get(cloudChat.id);
             if (!localChat || cloudChat.updatedAt >= localChat.updatedAt) merged.set(cloudChat.id, cloudChat);
           }
-          const restored = [...merged.values()].sort((a, b) => b.updatedAt - a.updatedAt);
-          setChats(restored.length ? restored : [starterChat()]);
+          const restored = [...merged.values()].filter((chat) => chat.messages.length > 0).sort((a, b) => b.updatedAt - a.updatedAt);
+          setChats(restored);
           setActiveId(restored[0]?.id ?? "");
         }
       } catch (cloudError) {
@@ -412,11 +413,12 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
 
   useEffect(() => {
     // Never push a stale browser cache after cloud restore failed; wait for Retry sync.
-    if (!cloudLoaded || cloudRestoreFailed || !supabase || !chats.length) return;
+    const savedChats = chats.filter((chat) => chat.messages.length > 0);
+    if (!cloudLoaded || cloudRestoreFailed || !supabase || !savedChats.length) return;
     const cloudClient = supabase;
     const syncVersion = ++cloudSyncVersionRef.current;
     setCloudSync("saving");
-    const rows = chats.map((chat) => ({
+    const rows = savedChats.map((chat) => ({
       id: chat.id,
       user_id: userId,
       title: chat.title,
@@ -478,7 +480,7 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
 
   function createChat() {
     const chat = { ...starterChat(), ...(activeProjectFilter ? { projectId: activeProjectFilter } : {}) };
-    setChats((previous) => [chat, ...previous]);
+    draftChatRef.current = chat;
     setActiveId(chat.id);
     setDraft("");
     setError("");
@@ -505,7 +507,7 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
       const project: AuraProject = { id: newId(), name, description: projectDescriptionDraft.trim().slice(0, 180), instructions: projectInstructionsDraft.trim().slice(0, 5000), createdAt: Date.now() };
       setProjects((current) => [project, ...current]);
       const firstChat = { ...starterChat(), projectId: project.id };
-      setChats((current) => [firstChat, ...current]);
+      draftChatRef.current = firstChat;
       setActiveId(firstChat.id);
       setActiveProjectFilter(project.id);
     }
@@ -920,9 +922,14 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
     const assistantId = newId();
     const assistantMessage: Message = { id: assistantId, role: "assistant", content: "", createdAt: Date.now() };
     const updateTargetChat = (messages: Message[]) => {
-      setChats((previous) => previous.map((chat) => chat.id === chatId
-        ? { ...chat, messages, title, updatedAt: Date.now() }
-        : chat));
+      setChats((previous) => {
+        const existing = previous.some((chat) => chat.id === chatId);
+        const updated = previous.map((chat) => chat.id === chatId
+          ? { ...chat, messages, title, updatedAt: Date.now() }
+          : chat);
+        if (existing) return updated;
+        return [{ ...currentChat, messages, title, updatedAt: Date.now() }, ...updated];
+      });
     };
     updateTargetChat([...nextMessages, assistantMessage]);
     setStreamingMessageId(assistantId);
