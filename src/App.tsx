@@ -5,7 +5,8 @@ import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import { supabase } from "./lib/supabase";
 
 type Message = { id: string; role: "user" | "assistant"; content: string; createdAt: number };
-type Chat = { id: string; title: string; messages: Message[]; updatedAt: number };
+type Chat = { id: string; title: string; messages: Message[]; updatedAt: number; projectId?: string };
+type AuraProject = { id: string; name: string; description: string; instructions: string; createdAt: number };
 type KnowledgeDocument = { id: string; name: string; content: string; addedAt: number };
 type PromptTemplate = { id: string; title: string; category: string; description: string; prompt: string };
 const BUILT_IN_PROMPTS: PromptTemplate[] = [
@@ -150,6 +151,14 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   const [pendingRenameChat, setPendingRenameChat] = useState<Chat | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const [pendingRestoreSettings, setPendingRestoreSettings] = useState(false);
+  const projectKey = "aura.projects.v1." + userId;
+  const [projects, setProjects] = useState<AuraProject[]>(() => loadJson<AuraProject[]>(projectKey, []));
+  const [activeProjectFilter, setActiveProjectFilter] = useState<string | null>(null);
+  const [projectModalOpen, setProjectModalOpen] = useState(false);
+  const [projectNameDraft, setProjectNameDraft] = useState("");
+  const [projectDescriptionDraft, setProjectDescriptionDraft] = useState("");
+  const [projectInstructionsDraft, setProjectInstructionsDraft] = useState("");
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [chats, setChats] = useState<Chat[]>(() => loadJson<Chat[]>(chatKey, [starterChat()]));
   const latestChatsRef = useRef(chats);
   useEffect(() => { latestChatsRef.current = chats; }, [chats]);
@@ -232,8 +241,9 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
     const settingsSaved = saveJson(settingsKey, settings);
     const knowledgeSaved = saveJson(knowledgeKey, knowledgeDocs);
     const promptsSaved = saveJson("aura.custom-prompts.v1." + userId, customPrompts);
-    setLocalSaveWarning(!(chatSaved && pinsSaved && settingsSaved && knowledgeSaved && promptsSaved));
-  }, [chats, cloudLoaded, chatKey, pinnedChatIds, userId, settingsKey, settings, knowledgeKey, knowledgeDocs, customPrompts]);
+    const projectsSaved = saveJson(projectKey, projects);
+    setLocalSaveWarning(!(chatSaved && pinsSaved && settingsSaved && knowledgeSaved && promptsSaved && projectsSaved));
+  }, [chats, cloudLoaded, chatKey, pinnedChatIds, userId, settingsKey, settings, knowledgeKey, knowledgeDocs, customPrompts, projectKey, projects]);
   // Once restore is complete, remove pins that no longer point to a saved conversation.
   // Waiting for cloudLoaded avoids pruning valid cloud pins while remote chats are still loading.
   useEffect(() => {
@@ -347,9 +357,8 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   const sortedChats = useMemo(() => [...chats].sort((a, b) => Number(pinnedChatIds.includes(b.id)) - Number(pinnedChatIds.includes(a.id)) || b.updatedAt - a.updatedAt), [chats, pinnedChatIds]);
   const filteredChats = useMemo(() => {
     const query = chatSearch.trim().toLocaleLowerCase();
-    if (!query) return sortedChats;
-    return sortedChats.filter((chat) => chat.title.toLocaleLowerCase().includes(query) || chat.messages.some((message) => message.content.toLocaleLowerCase().includes(query)));
-  }, [chatSearch, sortedChats]);
+    return sortedChats.filter((chat) => (activeProjectFilter === null || chat.projectId === activeProjectFilter) && (!query || chat.title.toLocaleLowerCase().includes(query) || chat.messages.some((message) => message.content.toLocaleLowerCase().includes(query))));
+  }, [chatSearch, sortedChats, activeProjectFilter]);
 
   const allPrompts = useMemo(() => [...BUILT_IN_PROMPTS, ...customPrompts], [customPrompts]);
   const filteredPrompts = useMemo(() => {
@@ -382,13 +391,53 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   }
 
   function createChat() {
-    const chat = starterChat();
+    const chat = { ...starterChat(), ...(activeProjectFilter ? { projectId: activeProjectFilter } : {}) };
     setChats((previous) => [chat, ...previous]);
     setActiveId(chat.id);
     setDraft("");
     setError("");
     setSidebarOpen(false);
     window.setTimeout(() => inputRef.current?.focus(), 50);
+  }
+
+  function openProjectEditor(project?: AuraProject) {
+    setEditingProjectId(project?.id ?? null);
+    setProjectNameDraft(project?.name ?? "");
+    setProjectDescriptionDraft(project?.description ?? "");
+    setProjectInstructionsDraft(project?.instructions ?? "");
+    setProjectModalOpen(true);
+    setSidebarOpen(false);
+  }
+
+  function saveProject(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const name = projectNameDraft.trim().slice(0, 60);
+    if (!name) return;
+    if (editingProjectId) {
+      setProjects((current) => current.map((project) => project.id === editingProjectId ? { ...project, name, description: projectDescriptionDraft.trim().slice(0, 180), instructions: projectInstructionsDraft.trim().slice(0, 5000) } : project));
+    } else {
+      const project: AuraProject = { id: newId(), name, description: projectDescriptionDraft.trim().slice(0, 180), instructions: projectInstructionsDraft.trim().slice(0, 5000), createdAt: Date.now() };
+      setProjects((current) => [project, ...current]);
+      setActiveProjectFilter(project.id);
+    }
+    setProjectModalOpen(false);
+    setEditingProjectId(null);
+    setProjectNameDraft("");
+    setProjectDescriptionDraft("");
+    setProjectInstructionsDraft("");
+  }
+
+  function deleteProject(id: string) {
+    setProjects((current) => current.filter((project) => project.id !== id));
+    setChats((current) => current.map((chat) => chat.projectId === id ? { ...chat, projectId: undefined, updatedAt: Date.now() } : chat));
+    if (activeProjectFilter === id) setActiveProjectFilter(null);
+    setProjectModalOpen(false);
+  }
+
+  function moveActiveChatToProject(projectId: string) {
+    if (!activeChat) return;
+    setChats((current) => current.map((chat) => chat.id === activeChat.id ? { ...chat, projectId: projectId || undefined, updatedAt: Date.now() } : chat));
+    if (activeProjectFilter !== null && projectId !== activeProjectFilter) setActiveId("");
   }
 
   function exportChats() {
@@ -682,7 +731,9 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
       const personalContext = settings.knowledge.trim()
         ? "\n\nPersonal knowledge notes (use when relevant; treat as user-provided context):\n" + settings.knowledge.trim()
         : "";
-      const context = personalContext + selectKnowledgeContext(prompt);
+      const activeProject = projects.find((project) => project.id === activeChat.projectId);
+      const projectContext = activeProject ? "\n\nActive project: " + activeProject.name + (activeProject.description ? "\nProject goal: " + activeProject.description : "") + (activeProject.instructions ? "\nProject-specific instructions (use alongside the user's global preferences):\n" + activeProject.instructions : "") : "";
+      const context = personalContext + projectContext + selectKnowledgeContext(prompt);
       const systemPrompt = settings.personality.trim() + context;
       const response = await fetch("/api/chat", {
         method: "POST",
@@ -809,7 +860,9 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
         </div>
         <button className="new-chat" onClick={createChat}><Plus size={17} /> <span>New conversation</span><span className="shortcut">⌘ K</span></button>
         <div className="sidebar-label">YOUR WORKSPACE</div>
-        <button className="nav-item selected" onClick={() => setSidebarOpen(false)}><MessageSquare size={17} /> Chats <span className="nav-count">{chats.length}</span></button>
+        <button className={"nav-item " + (activeProjectFilter === null ? "selected" : "")} onClick={() => { setActiveProjectFilter(null); setSidebarOpen(false); }}><MessageSquare size={17} /> All chats <span className="nav-count">{chats.length}</span></button>
+        <div className="projects-sidebar-heading"><span>PROJECTS</span><button type="button" onClick={() => openProjectEditor()} aria-label="Create project" title="Create project"><Plus size={14} /></button></div>
+        <div className="projects-sidebar-list">{projects.map((project) => <div className={"project-sidebar-row " + (activeProjectFilter === project.id ? "active" : "")} key={project.id}><button type="button" className="project-sidebar-pick" onClick={() => { setActiveProjectFilter(project.id); setSidebarOpen(false); }}><span className="project-color-dot" /><span>{project.name}</span><small>{chats.filter((chat) => chat.projectId === project.id).length}</small></button><button type="button" className="project-edit-shortcut" onClick={() => openProjectEditor(project)} title={"Edit " + project.name} aria-label={"Edit " + project.name}><Pencil size={12} /></button></div>)}{!projects.length && <p className="projects-empty-hint">Keep chats and instructions organized by project.</p>}</div>
         <button className="nav-item" onClick={() => { setSettingsOpen(true); setSidebarOpen(false); }}><BookOpen size={17} /> Knowledge & persona</button>
         <div className="history-head"><span>RECENT</span><span>{chatSearch.trim() ? `${filteredChats.length}/${sortedChats.length}` : sortedChats.length}</span></div>
         <div className="chat-backup-actions"><button type="button" onClick={exportChats} title="Export all conversations"><Download size={13} /> Export</button><button type="button" onClick={() => chatImportRef.current?.click()} title="Import an AURA JSON backup"><FileUp size={13} /> Import</button><input ref={chatImportRef} type="file" accept="application/json,.json" aria-label="Import chat backup" onChange={(event) => { void importChats(event.target.files?.[0]); }} /></div>
@@ -843,6 +896,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
             <div className="breadcrumb">Workspace <span>/</span> <strong>{hasMessages ? activeChat?.title : "New conversation"}</strong></div>
           </div>
           <div className="topbar-right">
+            {activeChat && <label className="active-project-picker" title="Organize this conversation in a project"><BookOpen size={14} /><select aria-label="Conversation project" value={activeChat.projectId ?? ""} onChange={(event) => moveActiveChatToProject(event.target.value)}><option value="">No project</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>}
             <div className={`connection ${connection}`}><span className="status-dot" />{connection === "online" ? "Model connected" : connection === "offline" ? "Model offline" : "Cloud AI"}</div>
             {!networkOnline && <div className="connection offline" role="status" aria-live="polite"><span className="status-dot" />No internet connection</div>}
             {localSaveWarning && <div className="connection offline storage-warning" role="status" aria-live="polite"><span className="status-dot" />Browser storage is full or unavailable. Export a chat backup to protect recent changes.</div>}
@@ -948,6 +1002,21 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
               <button type="button" className="app-dialog-secondary" onClick={() => setPendingRestoreSettings(false)}>Cancel</button>
               <button type="button" className="app-dialog-primary" onClick={confirmRestoreSettings}>Restore defaults</button>
             </div>
+          </section>
+        </div>
+      )}
+
+      {projectModalOpen && (
+        <div className="modal-backdrop project-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setProjectModalOpen(false); }}>
+          <section className="project-editor-modal" role="dialog" aria-modal="true" aria-labelledby="project-editor-title">
+            <header className="modal-header"><div><div className="modal-kicker">A DEDICATED SPACE FOR YOUR WORK</div><h2 id="project-editor-title">{editingProjectId ? "Edit project" : "Create a project"}</h2><p>Give a workspace its own goal and instructions. Chats inside it will use this context.</p></div><button className="icon-button" type="button" onClick={() => setProjectModalOpen(false)} aria-label="Close project editor"><X size={19} /></button></header>
+            <form className="project-editor-form" onSubmit={saveProject}>
+              <label>Project name<input value={projectNameDraft} onChange={(event) => setProjectNameDraft(event.target.value)} maxLength={60} placeholder="e.g. AURA website build" required /></label>
+              <label>Goal or description<textarea value={projectDescriptionDraft} onChange={(event) => setProjectDescriptionDraft(event.target.value)} maxLength={180} rows={2} placeholder="What are you trying to accomplish?" /></label>
+              <label>Project instructions<textarea value={projectInstructionsDraft} onChange={(event) => setProjectInstructionsDraft(event.target.value)} maxLength={5000} rows={5} placeholder="Tell AURA the project background, constraints, preferred stack, decisions already made, and how to help." /></label>
+              <p className="project-editor-note">Project instructions are included when you chat inside this project. Your existing conversations are preserved if you delete a project.</p>
+              <footer className="project-editor-actions">{editingProjectId && <button type="button" className="project-delete-action" onClick={() => deleteProject(editingProjectId)}><Trash2 size={14} /> Delete project</button>}<span /><button type="button" className="project-cancel-action" onClick={() => setProjectModalOpen(false)}>Cancel</button><button type="submit" className="project-save-action"><Check size={14} /> {editingProjectId ? "Save changes" : "Create project"}</button></footer>
+            </form>
           </section>
         </div>
       )}
