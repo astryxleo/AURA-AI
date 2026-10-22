@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
 import AuthGate from "./AuthGate";
+import auraIntroVideo from "../AuraIntro.mp4?url";
 import "./styles.css";
 import "./auth.css";
 
@@ -60,7 +61,7 @@ function StartupIntro() {
       <video
         ref={videoRef}
         className="aura-intro-video"
-        src="/AuraIntro.mp4"
+        src={auraIntroVideo}
         autoPlay
         playsInline
         preload="auto"
