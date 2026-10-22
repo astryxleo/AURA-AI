@@ -418,6 +418,9 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
     } else {
       const project: AuraProject = { id: newId(), name, description: projectDescriptionDraft.trim().slice(0, 180), instructions: projectInstructionsDraft.trim().slice(0, 5000), createdAt: Date.now() };
       setProjects((current) => [project, ...current]);
+      const firstChat = { ...starterChat(), projectId: project.id };
+      setChats((current) => [firstChat, ...current]);
+      setActiveId(firstChat.id);
       setActiveProjectFilter(project.id);
     }
     setProjectModalOpen(false);
