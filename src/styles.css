@@ -306,3 +306,24 @@ body { overflow: hidden; }
 .app-dialog-actions button:focus-visible{outline:2px solid #b6a0ff;outline-offset:2px}
 @media(max-width:420px){.app-dialog-modal{padding:22px}.app-dialog-actions{flex-direction:column-reverse}.app-dialog-actions button{width:100%}}
 @media(prefers-reduced-motion:reduce){.app-dialog-modal{animation:none}}
+
+
+/* User account section inside AURA settings. */
+.account-settings-section{border:1px solid #2e2c3a;border-radius:12px;background:linear-gradient(145deg,#15141e,#101117);padding:15px;display:flex;flex-direction:column;gap:13px}
+.account-settings-heading{display:flex;align-items:center;gap:11px;min-width:0}
+.account-settings-avatar{width:39px;height:39px;flex:0 0 39px;display:grid;place-items:center;border:1px solid #51436f;border-radius:12px;background:linear-gradient(145deg,#302647,#1b1927);color:#e2d7ff;font:700 16px var(--heading);text-transform:uppercase}
+.account-settings-heading-copy{min-width:0;flex:1}
+.account-settings-heading-copy .field-label{display:block;margin:0 0 4px;font-size:12px;color:#e4e0f1}
+.account-settings-heading-copy .field-help{margin:0}
+.account-status{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;border:1px solid #294739;border-radius:999px;background:#13251e;color:#a6dfbd;padding:5px 8px;font-size:9px;white-space:nowrap}
+.account-status span{width:6px;height:6px;border-radius:50%;background:#79d5a1;box-shadow:0 0 8px #79d57766}
+.account-settings-details{display:flex;flex-direction:column;border:1px solid #292a35;border-radius:8px;background:#0c0d13;padding:0 11px}
+.account-detail-row{display:flex;flex-direction:column;gap:5px;padding:10px 0;min-width:0}
+.account-detail-row+.account-detail-row{border-top:1px solid #252631}
+.account-detail-label{font-size:10px;color:#77798b}
+.account-detail-row strong{font-size:11px;line-height:1.6;color:#d8d5e5;font-weight:500;overflow-wrap:anywhere}
+.account-detail-row .account-id-value{font-family:var(--mono);font-size:9px;color:#9995ad}
+.account-settings-signout{display:inline-flex;align-items:center;justify-content:center;align-self:flex-start;gap:7px;min-height:35px;padding:8px 11px;border:1px solid #50323d;border-radius:8px;background:#21151b;color:#e6b1be;font-size:10px;font-weight:600;transition:background .16s,border-color .16s}
+.account-settings-signout:hover{background:#301b23;border-color:#865063;color:#ffe2e8}
+.account-settings-signout:focus-visible{outline:2px solid #b6a0ff;outline-offset:2px}
+@media(max-width:420px){.account-settings-section{padding:12px}.account-settings-heading{flex-wrap:wrap}.account-status{margin-left:auto}.account-settings-heading-copy{flex-basis:calc(100% - 55px)}}
