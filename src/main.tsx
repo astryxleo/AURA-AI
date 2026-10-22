@@ -90,6 +90,8 @@ function StartupIntro() {
         src={auraIntroVideo}
         autoPlay
         playsInline
+        disablePictureInPicture
+        controls={false}
         preload="auto"
         muted={!soundEnabled}
         onEnded={finish}
