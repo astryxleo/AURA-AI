@@ -52,37 +52,96 @@ const defaultSettings: Settings = {
   knowledge: "",
 };
 function renderInline(text: string, keyPrefix: string) {
-  const normalized = text.replace(/\\([*_\x60#-])/g, "$1");
-  const tokens = normalized.split(/(\*\*[^*]+\*\*|\*[^*]+\*|\x60[^\x60]+\x60)/g).filter(Boolean);
+  const normalized = text.replace(/\\([*_#~[\]()])/g, "$1");
+  const tokens = normalized.split(/(\[[^\]]+\]\(https?:\/\/[^)\s]+\)|\*\*[\s\S]+?\*\*|__[\s\S]+?__|~~[\s\S]+?~~|\*[^*\n]+\*|_[^_\n]+_|\x60[^\x60]+\x60)/g).filter(Boolean);
   return tokens.map((token, index) => {
     const key = keyPrefix + "-" + index;
-    if (token.startsWith("**") && token.endsWith("**")) return <strong key={key}>{token.slice(2, -2)}</strong>;
-    if (token.startsWith("*") && token.endsWith("*")) return <em key={key}>{token.slice(1, -1)}</em>;
+    const link = token.match(/^\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)$/);
+    if (link) return <a key={key} href={link[2]} target="_blank" rel="noopener noreferrer">{link[1]}</a>;
+    if ((token.startsWith("**") && token.endsWith("**")) || (token.startsWith("__") && token.endsWith("__"))) return <strong key={key}>{token.slice(2, -2)}</strong>;
+    if (token.startsWith("~~") && token.endsWith("~~")) return <del key={key}>{token.slice(2, -2)}</del>;
+    if ((token.startsWith("*") && token.endsWith("*")) || (token.startsWith("_") && token.endsWith("_"))) return <em key={key}>{token.slice(1, -1)}</em>;
     if (token.startsWith("\x60") && token.endsWith("\x60")) return <code key={key}>{token.slice(1, -1)}</code>;
     return token;
   });
 }
 
 function MarkdownContent({ content }: { content: string }) {
-  const normalized = content.replace(/\\([*_\x60#-])/g, "$1");
-  const blocks = normalized.split(/\n{2,}/).filter((block) => block.trim());
-  return <div className="markdown-content">{blocks.map((block, index) => {
-    const lines = block.split("\n");
-    const key = "block-" + index;
-    if (lines.every((line) => /^\s*[-*]\s+/.test(line))) {
-      return <ul key={key}>{lines.map((line, lineIndex) => <li key={key + "-" + lineIndex}>{renderInline(line.replace(/^\s*[-*]\s+/, ""), key + "-li-" + lineIndex)}</li>)}</ul>;
+  const normalized = content.replace(/\r\n?/g, "\n").replace(/\\([*_#~[\]()])/g, "$1").trim();
+  const lines = normalized.split("\n");
+  const blocks: Array<{ type: string; lines: string[]; language?: string }> = [];
+  let index = 0;
+  while (index < lines.length) {
+    const line = lines[index];
+    if (!line.trim()) { index += 1; continue; }
+    const fence = line.match(/^\s*(\x60{3}|~~~)\s*([\w.+-]*)\s*$/);
+    if (fence) {
+      const code: string[] = [];
+      index += 1;
+      while (index < lines.length && !new RegExp("^\\s*" + fence[1] + "\\s*$").test(lines[index])) code.push(lines[index++]);
+      if (index < lines.length) index += 1;
+      blocks.push({ type: "code", lines: code, language: fence[2] });
+      continue;
     }
-    if (lines.every((line) => /^\s*\d+[.)]\s+/.test(line))) {
-      return <ol key={key}>{lines.map((line, lineIndex) => <li key={key + "-" + lineIndex}>{renderInline(line.replace(/^\s*\d+[.)]\s+/, ""), key + "-li-" + lineIndex)}</li>)}</ol>;
+    if (/^\s*([-*_]\s*){3,}$/.test(line)) { blocks.push({ type: "hr", lines: [line] }); index += 1; continue; }
+    if (index + 1 < lines.length && /^\s*\|?.+\|.+\|?\s*$/.test(line) && /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(lines[index + 1])) {
+      const tableLines = [line, lines[index + 1]];
+      index += 2;
+      while (index < lines.length && lines[index].includes("|") && lines[index].trim()) tableLines.push(lines[index++]);
+      blocks.push({ type: "table", lines: tableLines });
+      continue;
     }
-    const heading = lines.length === 1 ? lines[0].match(/^(#{1,3})\s+(.+)$/) : null;
-    if (heading) {
-      const level = heading[1].length;
-      if (level === 1) return <h3 key={key}>{renderInline(heading[2], key)}</h3>;
-      if (level === 2) return <h4 key={key}>{renderInline(heading[2], key)}</h4>;
-      return <h5 key={key}>{renderInline(heading[2], key)}</h5>;
+    const heading = line.match(/^\s*(#{1,6})\s+(.+?)\s*#*\s*$/);
+    if (heading) { blocks.push({ type: "h" + Math.min(heading[1].length, 4), lines: [heading[2]] }); index += 1; continue; }
+    if (/^\s*>/.test(line)) {
+      const quote: string[] = [];
+      while (index < lines.length && /^\s*>/.test(lines[index])) quote.push(lines[index++].replace(/^\s*>\s?/, ""));
+      blocks.push({ type: "quote", lines: quote }); continue;
     }
-    return <p key={key}>{lines.map((line, lineIndex) => <span key={key + "-" + lineIndex}>{lineIndex > 0 && <br />}{renderInline(line, key + "-line-" + lineIndex)}</span>)}</p>;
+    const listMatch = line.match(/^(\s*)([-+*]|\d+[.)])\s+(.+)$/);
+    if (listMatch) {
+      const ordered = /^\d/.test(listMatch[2]);
+      const items: string[] = [];
+      while (index < lines.length) {
+        const match = lines[index].match(/^(\s*)([-+*]|\d+[.)])\s+(.+)$/);
+        if (!match || /^\d/.test(match[2]) !== ordered) break;
+        items.push(match[3]);
+        index += 1;
+        while (index < lines.length && /^\s{2,}\S/.test(lines[index]) && !/^\s*([-+*]|\d+[.)])\s+/.test(lines[index])) {
+          items[items.length - 1] += "\n" + lines[index].trim();
+          index += 1;
+        }
+      }
+      blocks.push({ type: ordered ? "ol" : "ul", lines: items }); continue;
+    }
+    const paragraph = [line];
+    index += 1;
+    while (index < lines.length && lines[index].trim() && !/^\s*(#{1,6}\s|\x60{3}|~~~|>|[-+*]\s+|\d+[.)]\s+)/.test(lines[index]) && !/^\s*([-*_]\s*){3,}$/.test(lines[index])) {
+      paragraph.push(lines[index++]);
+    }
+    blocks.push({ type: "p", lines: paragraph });
+  }
+
+  return <div className="markdown-content">{blocks.map((block, blockIndex) => {
+    const key = "block-" + blockIndex;
+    const inline = (value: string, suffix = "") => renderInline(value, key + suffix);
+    if (block.type === "code") return <pre key={key} className="markdown-code"><code>{block.lines.join("\n")}</code></pre>;
+    if (block.type === "hr") return <hr key={key} />;
+    if (block.type === "table") {
+      const cells = (row: string) => row.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim());
+      const headers = cells(block.lines[0]);
+      return <div className="markdown-table-wrap" key={key}><table><thead><tr>{headers.map((cell, i) => <th key={i}>{inline(cell, "-th-" + i)}</th>)}</tr></thead><tbody>{block.lines.slice(2).map((row, ri) => <tr key={ri}>{cells(row).map((cell, ci) => <td key={ci}>{inline(cell, "-r" + ri + "c" + ci)}</td>)}</tr>)}</tbody></table></div>;
+    }
+    if (block.type === "ul" || block.type === "ol") {
+      const Tag = block.type;
+      return <Tag key={key}>{block.lines.map((item, i) => <li key={i}>{inline(item, "-li-" + i)}</li>)}</Tag>;
+    }
+    if (block.type === "quote") return <blockquote key={key}>{block.lines.map((line, i) => <p key={i}>{inline(line, "-q-" + i)}</p>)}</blockquote>;
+    if (block.type.startsWith("h")) {
+      const Tag = block.type as "h1" | "h2" | "h3" | "h4";
+      return <Tag key={key}>{inline(block.lines[0])}</Tag>;
+    }
+    return <p key={key}>{block.lines.map((line, i) => <span key={i}>{i > 0 && <br />}{inline(line, "-line-" + i)}</span>)}</p>;
   })}</div>;
 }
 
