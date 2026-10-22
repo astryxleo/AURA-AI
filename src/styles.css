@@ -925,3 +925,31 @@ html:has(.aura-intro-overlay) body * { cursor: none !important; }
 @media (max-width: 480px) {
   .aura-intro-sound-hint { bottom: 16px; font-size: 9px; }
 }
+
+/* Landing state: keep the full welcome hero in the viewport without page/pane scrolling. */
+.conversation.welcome-state {
+  overflow: hidden;
+  scrollbar-gutter: auto;
+  overscroll-behavior: none;
+}
+.conversation.welcome-state .welcome {
+  padding-top: 0;
+  padding-bottom: 0;
+  margin-top: auto;
+  margin-bottom: auto;
+}
+@media (max-height: 760px) {
+  .conversation.welcome-state .welcome-icon { width: 52px; height: 52px; margin-bottom: 18px; }
+  .conversation.welcome-state .welcome h1 { font-size: clamp(36px, 4.5vw, 54px); }
+  .conversation.welcome-state .welcome > p { margin-top: 12px; line-height: 1.6; }
+  .conversation.welcome-state .suggestion-grid { margin-top: 18px; }
+  .conversation.welcome-state .welcome-foot { margin-top: 14px; }
+}
+@media (max-height: 620px) {
+  .conversation.welcome-state { padding-top: 8px; }
+  .conversation.welcome-state .welcome-icon,
+  .conversation.welcome-state .welcome-foot { display: none; }
+  .conversation.welcome-state .welcome h1 { font-size: clamp(32px, 4vw, 44px); }
+  .conversation.welcome-state .welcome > p { margin: 8px 0; }
+  .conversation.welcome-state .suggestion-grid { margin-top: 12px; }
+}
