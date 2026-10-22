@@ -469,14 +469,43 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
   }
 
   async function shareAccountProfile() {
-    const profile = `AURA account profile\\nEmail: ${userEmail || "Not available"}\\nAccount ID: ${userId}\\n\\nThis ID identifies my AURA account; it does not grant account access.`;
+    const initials = (userEmail.trim()[0] || "U").toUpperCase().replace(/[^A-Z0-9]/g, "A");
+    const shortId = userId.length > 28 ? userId.slice(0, 12) + "…" + userId.slice(-10) : userId;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="620" viewBox="0 0 1080 620">
+      <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0b0a12"/><stop offset=".55" stop-color="#171126"/><stop offset="1" stop-color="#271b3e"/></linearGradient><linearGradient id="accent" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#e1d4ff"/><stop offset="1" stop-color="#9270ed"/></linearGradient><radialGradient id="glow"><stop stop-color="#9873f4" stop-opacity=".35"/><stop offset="1" stop-color="#9873f4" stop-opacity="0"/></radialGradient></defs>
+      <rect width="1080" height="620" rx="38" fill="url(#bg)"/><circle cx="920" cy="90" r="340" fill="url(#glow)"/><circle cx="980" cy="550" r="260" fill="url(#glow)"/>
+      <rect x="48" y="48" width="984" height="524" rx="28" fill="none" stroke="#ffffff" stroke-opacity=".12"/>
+      <circle cx="150" cy="160" r="58" fill="url(#accent)"/><text x="150" y="180" text-anchor="middle" font-family="Arial,sans-serif" font-size="58" font-weight="700" fill="#171020">${initials}</text>
+      <text x="238" y="145" font-family="Arial,sans-serif" font-size="24" letter-spacing="7" font-weight="700" fill="#c8b5ff">A U R A</text><text x="238" y="184" font-family="Arial,sans-serif" font-size="22" fill="#a8a0b9">PERSONAL AI ACCOUNT</text>
+      <text x="92" y="315" font-family="Arial,sans-serif" font-size="48" font-weight="700" fill="#f6f1ff">AURA Member</text><text x="92" y="368" font-family="Arial,sans-serif" font-size="22" fill="#aaa2be">A personal space for ideas, learning and creation.</text>
+      <rect x="92" y="426" width="896" height="82" rx="16" fill="#ffffff" fill-opacity=".055" stroke="#ffffff" stroke-opacity=".12"/>
+      <text x="118" y="459" font-family="Arial,sans-serif" font-size="15" letter-spacing="2" fill="#bdb0df">ACCOUNT ID</text><text x="118" y="487" font-family="Arial,sans-serif" font-size="21" fill="#eee8ff">${shortId.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</text>
+      <text x="92" y="546" font-family="Arial,sans-serif" font-size="15" fill="#8f86a7">IDENTITY CARD · ID ALONE DOES NOT GRANT ACCESS</text></svg>`;
+    const svgUrl = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
     try {
-      if (navigator.share) { await navigator.share({ title: "My AURA account", text: profile }); setAccountNotice("Share sheet opened."); }
-      else { await navigator.clipboard.writeText(profile); setAccountNotice("Account profile copied, ready to share."); }
+      const picture = new Image();
+      picture.src = svgUrl;
+      await new Promise<void>((resolve, reject) => { picture.onload = () => resolve(); picture.onerror = () => reject(new Error("Image rendering failed")); });
+      const canvas = document.createElement("canvas");
+      canvas.width = 1080; canvas.height = 620;
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Image canvas unavailable");
+      context.drawImage(picture, 0, 0);
+      const png = await new Promise<Blob>((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Image export failed")), "image/png"));
+      const file = new File([png], "aura-profile-card.png", { type: "image/png" });
+      if (navigator.share && typeof navigator.canShare === "function" && navigator.canShare({ files: [file] })) {
+        await navigator.share({ title: "My AURA profile", text: "My AURA account card", files: [file] });
+        setAccountNotice("AURA profile picture shared.");
+      } else {
+        const pngUrl = URL.createObjectURL(png);
+        const link = document.createElement("a"); link.href = pngUrl; link.download = "aura-profile-card.png";
+        document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(pngUrl);
+        setAccountNotice("AURA profile card saved as an image, ready to share.");
+      }
     } catch (caught) {
       if (caught instanceof Error && caught.name === "AbortError") return;
-      setAccountNotice("Sharing isn't available here. Use Copy ID instead.");
-    }
+      setAccountNotice("Couldn't create the profile picture. Please try again.");
+    } finally { URL.revokeObjectURL(svgUrl); }
   }
 
   function exportAccountData() {
@@ -1233,7 +1262,7 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
                 </div>
                 <div className="account-action-grid">
                   <button type="button" onClick={() => { void copyAccountId(); }}><Copy size={15} /><span>Copy ID</span></button>
-                  <button type="button" onClick={() => { void shareAccountProfile(); }}><Share2 size={15} /><span>Share profile</span></button>
+                  <button type="button" onClick={() => { void shareAccountProfile(); }}><Share2 size={15} /><span>Share profile picture</span></button>
                   <button type="button" onClick={exportAccountData}><Download size={15} /><span>Export all data</span></button>
                   <button type="button" onClick={() => chatImportRef.current?.click()}><ArchiveRestore size={15} /><span>Import / transfer</span></button>
                   <button type="button" disabled={accountBusy} onClick={() => { void sendAccountRecoveryEmail(); }}><KeyRound size={15} /><span>{accountBusy ? "Please wait…" : "Recover account"}</span></button>
