@@ -567,6 +567,7 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
           id: typeof value.id === "string" && value.id ? value.id : newId() + "-" + index,
           title: value.title.trim().slice(0, 80) || "Imported conversation",
           messages,
+          projectId: typeof value.projectId === "string" ? value.projectId : undefined,
           updatedAt: typeof value.updatedAt === "number" && Number.isFinite(value.updatedAt) && value.updatedAt > 0 && value.updatedAt <= Date.now() + 24 * 60 * 60 * 1000 ? value.updatedAt : Date.now(),
         };
       });
@@ -606,7 +607,7 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
         }
         if (Array.isArray(backupMetadata.projects)) {
           const restoredProjects = backupMetadata.projects.filter((item): item is AuraProject => Boolean(item) && typeof item === "object" && typeof (item as AuraProject).name === "string" && typeof (item as AuraProject).instructions === "string").slice(0, 200);
-          setProjects(restoredProjects.map((project) => ({ ...project, id: newId() })));
+          setProjects(restoredProjects);
         }
         if (Array.isArray(backupMetadata.knowledgeDocs)) {
           const restoredDocs = backupMetadata.knowledgeDocs.filter((item): item is KnowledgeDocument => Boolean(item) && typeof item === "object" && typeof (item as KnowledgeDocument).name === "string" && typeof (item as KnowledgeDocument).content === "string").slice(0, 100);
@@ -614,7 +615,7 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
         }
         if (Array.isArray(backupMetadata.customPrompts)) {
           const restoredPrompts = backupMetadata.customPrompts.filter((item): item is PromptTemplate => Boolean(item) && typeof item === "object" && typeof (item as PromptTemplate).title === "string" && typeof (item as PromptTemplate).prompt === "string").slice(0, 200);
-          setCustomPrompts(restoredPrompts.map((prompt) => ({ ...prompt, id: newId() })));
+          setCustomPrompts(restoredPrompts);
         }
         if (Array.isArray(backupMetadata.pinnedChatIds)) setPinnedChatIds(backupMetadata.pinnedChatIds.filter((id): id is string => typeof id === "string").slice(0, 1000));
         setAccountNotice("Account data imported. Your current account ID stays unchanged.");
