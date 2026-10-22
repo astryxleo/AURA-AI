@@ -207,7 +207,7 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
     event.currentTarget.setPointerCapture(event.pointerId);
     event.preventDefault();
   }
-  function moveSidebarResize(event: React.PointerEvent<HTMLDivElement>) {
+  function moveSidebarResize(event: ReactPointerEvent<HTMLDivElement>) {
     if (!sidebarResizeRef.current) return;
     setSidebarWidth(Math.round(Math.max(190, Math.min(360, sidebarResizeRef.current.startWidth + event.clientX - sidebarResizeRef.current.startX))));
   }
@@ -939,8 +939,8 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
   }
 
   return (
-    <div className="app-shell">
-      <aside className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
+    <div className={`app-shell ${sidebarHidden ? "sidebar-hidden" : ""}`}>
+      <aside className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`} style={{ width: sidebarWidth, flexBasis: sidebarWidth, "--sidebar-scale": String(sidebarWidth / 258) } as CSSProperties}>
         <div className="brand-row">
           <div className="brand-mark"><Sparkles size={21} strokeWidth={1.8} /></div>
           <div className="brand-copy"><span>AURA</span><small>PERSONAL INTELLIGENCE</small></div>
@@ -974,6 +974,7 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
           <button className="icon-button" aria-label="Open settings" title="Settings" onClick={() => setSettingsOpen(true)}><Settings2 size={18} /></button>
           <button className="icon-button" aria-label="Sign out" title="Sign out" onClick={onSignOut}><LogOut size={18} /></button>
         </div>
+        <div className="sidebar-resize-handle" role="separator" aria-orientation="vertical" aria-label="Resize navigation sidebar" aria-valuemin={190} aria-valuemax={360} aria-valuenow={sidebarWidth} tabIndex={0} onPointerDown={startSidebarResize} onPointerMove={moveSidebarResize} onPointerUp={stopSidebarResize} onPointerCancel={stopSidebarResize} onLostPointerCapture={stopSidebarResize} onKeyDown={(event) => { if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.preventDefault(); setSidebarWidth((width) => Math.max(190, Math.min(360, width + (event.key === "ArrowRight" ? 12 : -12)))); } }} />
       </aside>
 
       {sidebarOpen && <button className="scrim" aria-label="Close navigation" onClick={() => setSidebarOpen(false)} />}
