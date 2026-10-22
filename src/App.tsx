@@ -354,7 +354,8 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
 
   useEffect(() => { if (!activeId && chats[0]) setActiveId(chats[0].id); }, [activeId, chats]);
   useEffect(() => {
-    if (!startNewChatOnSignIn || !cloudLoaded || createdSignInChatRef.current) return;
+    // Every fresh app session opens on the empty welcome dashboard. A draft is not history until its first message.
+    if (!cloudLoaded || createdSignInChatRef.current) return;
     createdSignInChatRef.current = true;
     const freshChat = starterChat();
     draftChatRef.current = freshChat;
