@@ -318,7 +318,7 @@ export default function App({ userId, userEmail, onSignOut, startNewChatOnSignIn
     input.style.height = "auto";
     input.style.height = `${Math.min(input.scrollHeight, 180)}px`;
   }, [draft]);
-  const activeChat = chats.find((chat) => chat.id === activeId) ?? chats[0] ?? draftChatRef.current;
+  const activeChat = chats.find((chat) => chat.id === activeId) ?? (activeId === draftChatRef.current.id ? draftChatRef.current : undefined) ?? chats[0] ?? draftChatRef.current;
   const hasMessages = Boolean(activeChat?.messages.length);
 
   useEffect(() => {
