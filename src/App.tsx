@@ -136,6 +136,9 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   const [localSaveWarning, setLocalSaveWarning] = useState(false);
   const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
   const [pendingDeleteChat, setPendingDeleteChat] = useState<Chat | null>(null);
+  const [pendingRenameChat, setPendingRenameChat] = useState<Chat | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
+  const [pendingRestoreSettings, setPendingRestoreSettings] = useState(false);
   const [chats, setChats] = useState<Chat[]>(() => loadJson<Chat[]>(chatKey, [starterChat()]));
   const latestChatsRef = useRef(chats);
   useEffect(() => { latestChatsRef.current = chats; }, [chats]);
@@ -462,17 +465,24 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   function renameChat(id: string) {
     const target = chats.find((chat) => chat.id === id);
     if (!target) return;
-    const entered = window.prompt("Rename conversation", target.title);
-    if (entered === null) return;
-    const title = entered.trim().slice(0, 80);
+    setRenameDraft(target.title);
+    setPendingRenameChat(target);
+    setError("");
+  }
+
+  function saveRenamedChat() {
+    if (!pendingRenameChat) return;
+    const title = renameDraft.trim().slice(0, 80);
     if (!title) {
       setError("Conversation names can't be empty.");
       return;
     }
-    setError("");
-    setChats((previous) => previous.map((chat) => chat.id === id
+    setChats((previous) => previous.map((chat) => chat.id === pendingRenameChat.id
       ? { ...chat, title, updatedAt: Date.now() }
       : chat));
+    setPendingRenameChat(null);
+    setRenameDraft("");
+    setError("");
   }
 
   function updateActive(messages: Message[], title?: string) {
@@ -724,9 +734,12 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   }
 
   function resetSettingsToDefaults() {
-    const confirmed = window.confirm("Restore AURA's default model and instructions? Your Knowledge Vault documents and chat history will stay unchanged.");
-    if (!confirmed) return;
+    setPendingRestoreSettings(true);
+  }
+
+  function confirmRestoreSettings() {
     setSettings({ ...defaultSettings });
+    setPendingRestoreSettings(false);
     setError("");
   }
 
@@ -852,6 +865,40 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
               <button type="button" className="delete-confirm-submit" disabled={deletingChatId !== null} onClick={async () => { await deleteChat(pendingDeleteChat.id); setPendingDeleteChat(null); }}>
                 <Trash2 size={14} /> {deletingChatId ? "Deleting…" : "Delete conversation"}
               </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {pendingRenameChat && (
+        <div className="modal-backdrop app-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) { setPendingRenameChat(null); setRenameDraft(""); } }}>
+          <section className="app-dialog-modal" role="dialog" aria-modal="true" aria-labelledby="rename-dialog-title">
+            <div className="app-dialog-icon"><Pencil size={19} /></div>
+            <div className="app-dialog-kicker">CONVERSATION SETTINGS</div>
+            <h2 id="rename-dialog-title">Rename conversation</h2>
+            <p>Give this conversation a name that’s easy to recognize later.</p>
+            <form onSubmit={(event) => { event.preventDefault(); saveRenamedChat(); }}>
+              <label className="app-dialog-label" htmlFor="rename-conversation-input">Conversation name</label>
+              <input id="rename-conversation-input" className="app-dialog-input" autoFocus maxLength={80} value={renameDraft} onChange={(event) => setRenameDraft(event.target.value)} placeholder="Enter a conversation name" />
+              <div className="app-dialog-actions">
+                <button type="button" className="app-dialog-secondary" onClick={() => { setPendingRenameChat(null); setRenameDraft(""); }}>Cancel</button>
+                <button type="submit" className="app-dialog-primary" disabled={!renameDraft.trim()}>Save name</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {pendingRestoreSettings && (
+        <div className="modal-backdrop app-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setPendingRestoreSettings(false); }}>
+          <section className="app-dialog-modal" role="dialog" aria-modal="true" aria-labelledby="restore-dialog-title" aria-describedby="restore-dialog-description">
+            <div className="app-dialog-icon restore"><Settings2 size={19} /></div>
+            <div className="app-dialog-kicker">RESET PREFERENCES</div>
+            <h2 id="restore-dialog-title">Restore default settings?</h2>
+            <p id="restore-dialog-description">AURA’s model and personality instructions will return to their defaults. Your Knowledge Vault documents and chat history will stay unchanged.</p>
+            <div className="app-dialog-actions">
+              <button type="button" className="app-dialog-secondary" onClick={() => setPendingRestoreSettings(false)}>Cancel</button>
+              <button type="button" className="app-dialog-primary" onClick={confirmRestoreSettings}>Restore defaults</button>
             </div>
           </section>
         </div>
