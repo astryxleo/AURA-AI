@@ -1,7 +1,7 @@
 
 /* AURA account access */
-.auth-screen{min-height:100vh;min-height:100dvh;display:grid;align-items:start;justify-items:center;overflow-y:auto;overscroll-behavior-y:contain;padding:clamp(12px,3vh,28px) 16px;background:radial-gradient(ellipse at 50% 5%,rgba(150,113,255,.13),transparent 42%),#08090d;color:#f4f2fb;font-family:Inter,ui-sans-serif,system-ui,sans-serif}
-.auth-card{width:min(100%,440px);margin-block:auto;padding:clamp(26px,5vw,42px);border:1px solid rgba(183,164,255,.18);border-radius:24px;background:linear-gradient(155deg,rgba(27,25,38,.96),rgba(13,13,19,.98));box-shadow:0 30px 100px rgba(0,0,0,.42)}
+.auth-screen{min-height:100vh;min-height:100dvh;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow-y:auto;overscroll-behavior-y:contain;padding:16px;background:radial-gradient(ellipse at 50% 5%,rgba(150,113,255,.13),transparent 42%),#08090d;color:#f4f2fb;font-family:Inter,ui-sans-serif,system-ui,sans-serif}
+.auth-card{box-sizing:border-box;width:min(100%,440px);flex:0 0 auto;margin:auto;padding:clamp(22px,4vw,36px);border:1px solid rgba(183,164,255,.18);border-radius:24px;background:linear-gradient(155deg,rgba(27,25,38,.96),rgba(13,13,19,.98));box-shadow:0 30px 100px rgba(0,0,0,.42)}
 .auth-logo{width:48px;height:48px;display:grid;place-items:center;border-radius:16px;background:linear-gradient(135deg,#c6a9ff,#8165e8);color:#100c1c;font-size:27px;margin-bottom:25px}
 .auth-kicker{font-size:10px;letter-spacing:.18em;color:#b9a4ff;font-weight:700;margin-bottom:12px}
 .auth-card h1{font-size:clamp(29px,5vw,38px);letter-spacing:-.045em;margin:0 0 10px}
@@ -28,5 +28,5 @@
 .auth-reset{justify-self:end;border:0;background:none;color:#b9a4ff;font:inherit;font-size:11px;cursor:pointer;padding:0 1px}.auth-reset:hover{text-decoration:underline}.auth-reset:disabled{opacity:.5;cursor:wait}
 
 /* Compact viewport spacing */
-@media(max-height:720px){.auth-screen{padding-top:12px;padding-bottom:12px}.auth-logo{margin-bottom:16px}.auth-card>p{margin-bottom:18px}.auth-foot{margin-top:17px;padding-top:12px}}
+@media(max-height:820px){.auth-screen{justify-content:flex-start;padding-top:12px;padding-bottom:12px}.auth-logo{margin-bottom:16px}.auth-card>p{margin-bottom:18px}.auth-foot{margin-top:17px;padding-top:12px}.auth-card{padding-top:22px;padding-bottom:22px}.auth-form{gap:13px}}
 @media(max-width:380px){.auth-screen{padding-left:10px;padding-right:10px}.auth-card{padding:22px 18px}.auth-form{gap:13px}}
