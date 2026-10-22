@@ -179,6 +179,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [retryPrompt, setRetryPrompt] = useState<string | null>(null);
+  const [retryChatId, setRetryChatId] = useState<string | null>(null);
   const requestAbortRef = useRef<AbortController | null>(null);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -711,6 +712,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
     const currentChat = activeChat;
     setError("");
     setRetryPrompt(null);
+    setRetryChatId(null);
     setDraft("");
     const userMessage: Message = { id: newId(), role: "user", content: prompt, createdAt: Date.now() };
     const nextMessages = [...currentChat.messages, userMessage];
@@ -789,6 +791,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
       } else {
         setConnection("offline");
         setRetryPrompt(prompt);
+        setRetryChatId(chatId);
         const message = caught instanceof Error ? caught.message : "AURA couldn't respond just now.";
         setError(message.includes("Failed to fetch")
           ? "AURA is having trouble connecting. Please try again in a moment."
@@ -809,7 +812,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   }
 
   function retryLastMessage() {
-    if (!activeChat || busy || !retryPrompt) return;
+    if (!activeChat || busy || !retryPrompt || activeChat.id !== retryChatId) return;
     let userIndex = -1;
     for (let index = activeChat.messages.length - 1; index >= 0; index -= 1) {
       if (activeChat.messages[index].role === "user" && activeChat.messages[index].content === retryPrompt) {
@@ -822,6 +825,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
       setDraft(prompt);
       setError("");
       setRetryPrompt(null);
+      setRetryChatId(null);
       window.setTimeout(() => inputRef.current?.form?.requestSubmit(), 0);
       return;
     }
@@ -830,6 +834,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
     setDraft(prompt);
     setError("");
     setRetryPrompt(null);
+    setRetryChatId(null);
     window.setTimeout(() => inputRef.current?.form?.requestSubmit(), 0);
   }
 
@@ -987,7 +992,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
 
         <div className="composer-wrap">
           {!networkOnline && <div className="error-banner" role="status"><span>You are offline. Your existing chats remain available; reconnect before sending new messages.</span></div>}
-          {error && <div className="error-banner"><span>{error}</span><div className="error-actions">{retryPrompt && <button type="button" className="retry-message" disabled={busy} onClick={retryLastMessage}><Zap size={13} /> Retry response</button>}<button aria-label="Dismiss error" onClick={() => setError("")}><X size={15} /></button></div></div>}
+          {error && <div className="error-banner"><span>{error}</span><div className="error-actions">{retryPrompt && activeChat?.id === retryChatId && <button type="button" className="retry-message" disabled={busy} onClick={retryLastMessage}><Zap size={13} /> Retry response</button>}<button aria-label="Dismiss error" onClick={() => setError("")}><X size={15} /></button></div></div>}
           <form className="composer" onSubmit={sendMessage}>
             <textarea ref={inputRef} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={onKeyDown} placeholder="Message AURA... (Enter to send, Shift + Enter for a new line)" rows={1} aria-label="Message AURA" />
             <div className="composer-bottom"><div className="composer-bottom-tools"><div className="composer-hint"><span className="composer-spark"><Sparkles size={13} /></span><span>Curious by design.</span></div><button className="prompt-library-trigger" type="button" onClick={() => setPromptLibraryOpen(true)} title="Open reusable prompt library"><BookOpen size={14} /><span>Prompt library</span></button></div>{busy ? <button className="send-button stop-generation-button" type="button" onClick={stopGeneration} aria-label="Stop generation"><span className="stop-generation-square" /><span>Stop</span></button> : <button className="send-button" type="submit" disabled={!draft.trim()} aria-label="Send message"><Send size={17} /><span>Send</span></button>}</div>
