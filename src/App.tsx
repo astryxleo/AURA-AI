@@ -953,7 +953,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
                   <div className={`message-avatar ${message.role}`}>{message.role === "assistant" ? <Sparkles size={17} /> : "Y"}</div>
                   <div className="message-body">
                     <div className="message-label"><span>{message.role === "assistant" ? "AURA" : "YOU"}</span><time dateTime={new Date(Number.isFinite(message.createdAt) && Math.abs(message.createdAt) <= 8640000000000000 ? message.createdAt : Date.now()).toISOString()}>{new Date(Number.isFinite(message.createdAt) && Math.abs(message.createdAt) <= 8640000000000000 ? message.createdAt : Date.now()).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</time></div>
-                    <div className={`message-content ${message.id === streamingMessageId ? "message-streaming" : ""}`}><MarkdownContent content={message.content} /></div>
+                    <div className={`message-content ${message.id === streamingMessageId ? "message-streaming" : ""}`}>{message.content ? <MarkdownContent content={message.content} /> : message.id === streamingMessageId ? <div className="typing"><span /><span /><span /> <small>Starting</small></div> : null}</div>
                     {message.id !== streamingMessageId && <div className="message-actions">
                       <button type="button" onClick={() => { void copyMessage(message.content); }} aria-label={message.role === "assistant" ? "Copy AURA response" : "Copy your message"} title="Copy message"><Copy size={13} /> Copy</button>
                       {message.role === "user" && <button type="button" disabled={busy} onClick={() => editUserMessage(message.id)} title="Edit and resend this message"><Pencil size={13} /> Edit</button>}
