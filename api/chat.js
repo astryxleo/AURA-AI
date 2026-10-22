@@ -113,50 +113,118 @@ export default async function handler(req, res) {
     const remaining = deadline - Date.now();
     if (remaining < 1000) break;
 
-    const url = "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(activeModel) + ":generateContent";
+    const url = "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(activeModel) + ":streamGenerateContent?alt=sse";
     try {
       const upstream = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
         body: requestBody,
-        signal: AbortSignal.timeout(Math.min(8000, remaining)),
+        signal: AbortSignal.timeout(remaining),
       });
-      const result = await upstream.json().catch(() => ({}));
 
-      if (upstream.ok) {
-        const answer = (result.candidates?.[0]?.content?.parts ?? [])
-          .map((part) => typeof part.text === "string" ? part.text : "")
-          .join("")
-          .trim();
-        if (!answer) {
-          lastStatus = 502;
-          lastMessage = "The provider returned an empty response.";
-          console.error("Gemini returned an empty response", { model: activeModel });
-          continue;
-        }
-        return send(res, 200, { message: { role: "assistant", content: answer }, model: activeModel });
+      if (!upstream.ok) {
+        const result = await upstream.json().catch(() => ({}));
+        lastStatus = upstream.status;
+        lastMessage = typeof result.error?.message === "string" ? result.error.message.slice(0, 240) : "No provider error details were returned.";
+        if (upstream.status === 429) sawRateLimit = true;
+        console.error("AURA generation request failed", { status: upstream.status, code: result.error?.status ?? "unknown", message: lastMessage });
+        if (![429, 500, 502, 503, 504, 404].includes(upstream.status)) break;
+        continue;
       }
 
-      lastStatus = upstream.status;
-      lastMessage = typeof result.error?.message === "string"
-        ? result.error.message.slice(0, 240)
-        : "No provider error details were returned.";
-      if (upstream.status === 429) sawRateLimit = true;
-      console.error("Gemini request failed", {
-        status: upstream.status,
-        code: result.error?.status ?? "unknown",
-        message: lastMessage,
-        model: activeModel,
-      });
+      if (!upstream.body) {
+        lastStatus = 502;
+        lastMessage = "The response stream was unavailable.";
+        continue;
+      }
 
-      // Retry only transient failures or model IDs unavailable to this API key.
-      if (![429, 500, 502, 503, 504, 404].includes(upstream.status)) break;
+      const reader = upstream.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let firstText = "";
+      let streamStarted = false;
+      let gotText = false;
+      const emitText = (text) => {
+        if (!text) return;
+        gotText = true;
+        if (!streamStarted) {
+          firstText += text;
+          return;
+        }
+        if (!res.destroyed) res.write(text);
+      };
+      const processEvents = (final = false) => {
+        const lines = buffer.split(/\r?\n/);
+        buffer = final ? "" : (lines.pop() ?? "");
+        for (const line of lines) {
+          if (!line.startsWith("data:")) continue;
+          const payload = line.slice(5).trim();
+          if (!payload || payload === "[DONE]") continue;
+          try {
+            const event = JSON.parse(payload);
+            const parts = event.candidates?.[0]?.content?.parts ?? [];
+            for (const part of parts) if (typeof part.text === "string") emitText(part.text);
+          } catch {
+            // Ignore malformed/incomplete SSE events; the next event may still be valid.
+          }
+        }
+      };
+
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          processEvents();
+          if (firstText && !streamStarted) {
+            res.statusCode = 200;
+            res.setHeader("Content-Type", "text/plain; charset=utf-8");
+            res.setHeader("X-Accel-Buffering", "no");
+            res.setHeader("Cache-Control", "no-cache, no-transform");
+            res.setHeader("X-Content-Type-Options", "nosniff");
+            res.flushHeaders?.();
+            res.write(firstText);
+            firstText = "";
+            streamStarted = true;
+          }
+          if (res.destroyed) {
+            await reader.cancel().catch(() => undefined);
+            return;
+          }
+        }
+        buffer += decoder.decode();
+        processEvents(true);
+        if (firstText && !streamStarted) {
+          res.statusCode = 200;
+          res.setHeader("Content-Type", "text/plain; charset=utf-8");
+          res.setHeader("X-Accel-Buffering", "no");
+          res.setHeader("Cache-Control", "no-cache, no-transform");
+          res.flushHeaders?.();
+          res.write(firstText);
+          streamStarted = true;
+        }
+        if (streamStarted && gotText) {
+          if (!res.destroyed) res.end();
+          return;
+        }
+        if (res.headersSent) {
+          if (!res.destroyed) res.end();
+          return;
+        }
+        lastStatus = 502;
+        lastMessage = "The response was empty.";
+      } finally {
+        reader.releaseLock();
+      }
     } catch (error) {
+      if (res.headersSent) {
+        if (!res.destroyed) res.end();
+        return;
+      }
       lastStatus = 504;
       sawTimeout = true;
-      lastMessage = error instanceof Error ? error.message.slice(0, 180) : "Provider request timed out.";
-      console.error("Gemini model request failed", { model: activeModel, message: lastMessage });
-      // A timeout or network error on one model should not prevent trying the next.
+      lastMessage = error instanceof Error ? error.message.slice(0, 180) : "The request timed out.";
+      console.error("AURA generation stream failed", { message: lastMessage });
     }
   }
 
