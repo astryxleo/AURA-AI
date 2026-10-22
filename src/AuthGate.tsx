@@ -28,6 +28,7 @@ function friendlyAuthError(caught: unknown, fallback: string) {
 
 export default function AuthGate() {
   const [session, setSession] = useState<import("@supabase/supabase-js").Session | null>(null);
+  const [startNewChatOnSignIn, setStartNewChatOnSignIn] = useState(false);
   const [ready, setReady] = useState(false);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
@@ -43,8 +44,12 @@ export default function AuthGate() {
     if (!supabase) { setReady(true); return; }
     let active = true;
     let authEventReceived = false;
+    let previousSession: import("@supabase/supabase-js").Session | null = null;
     const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
       authEventReceived = true;
+      if (event === "SIGNED_IN" && !previousSession && nextSession?.user) setStartNewChatOnSignIn(true);
+      if (event === "SIGNED_OUT") setStartNewChatOnSignIn(false);
+      previousSession = nextSession;
       if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
       setSession(nextSession);
       setReady(true);
@@ -107,7 +112,7 @@ export default function AuthGate() {
 
   if (session?.user && recoveryMode) return <div className="auth-screen"><div className="auth-card"><div className="auth-logo">✦</div><div className="auth-kicker">ACCOUNT SECURITY</div><h1>Choose a new password.</h1><p>Use at least 8 characters, then sign in with your updated password.</p><form className="auth-form" onSubmit={async (event) => { event.preventDefault(); if (!supabase) return; setBusy(true); setError(""); setNotice(""); try { const { error: updateError } = await supabase.auth.updateUser({ password: newPassword }); if (updateError) throw updateError; setRecoveryMode(false); setPassword(""); setNewPassword(""); setNotice("Password updated successfully."); } catch (caught) { setError(friendlyAuthError(caught, "Could not update your password. Please try again.")); } finally { setBusy(false); } }}><label>New password<input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" minLength={8} required /></label>{error && <div className="auth-error" role="alert">{error}</div>}{notice && <div className="auth-notice" role="status">{notice}</div>}<button className="auth-submit" type="submit" disabled={busy}>{busy ? "Updating…" : "Update password"} <span>↗</span></button></form></div></div>;
 
-  if (session?.user) return <App userId={session.user.id} userEmail={session.user.email ?? ""} onSignOut={signOut} />;
+  if (session?.user) return <App userId={session.user.id} userEmail={session.user.email ?? ""} onSignOut={signOut} startNewChatOnSignIn={startNewChatOnSignIn} />;
 
   return <div className="auth-screen">
     <div className="auth-card">
