@@ -909,6 +909,28 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
           <section className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
             <header className="modal-header"><div><div className="modal-kicker">PERSONALIZE YOUR EXPERIENCE</div><h2 id="settings-title">AURA settings</h2><p>Shape how AURA thinks, responds, and uses your context.</p></div><button className="icon-button" onClick={() => setSettingsOpen(false)} aria-label="Close settings"><X size={19} /></button></header>
             <div className="settings-body">
+              <section className="account-settings-section" aria-labelledby="account-settings-title">
+                <div className="account-settings-heading">
+                  <div className="account-settings-avatar" aria-hidden="true">{(userEmail.trim()[0] || "U").toUpperCase()}</div>
+                  <div className="account-settings-heading-copy">
+                    <span className="field-label" id="account-settings-title">User account</span>
+                    <p className="field-help">Your signed-in AURA identity and account access.</p>
+                  </div>
+                  <span className="account-status"><span /> Signed in</span>
+                </div>
+                <div className="account-settings-details">
+                  <div className="account-detail-row">
+                    <span className="account-detail-label">Email address</span>
+                    <strong>{userEmail || "Email unavailable"}</strong>
+                  </div>
+                  <div className="account-detail-row">
+                    <span className="account-detail-label">Account ID</span>
+                    <strong className="account-id-value" title={userId}>{userId}</strong>
+                  </div>
+                </div>
+                <button type="button" className="account-settings-signout" onClick={onSignOut}><LogOut size={15} /> Sign out of AURA</button>
+              </section>
+              <div className="field-divider" />
               <div className="settings-tools"><span className="field-help">Changes save automatically for this account on this browser.</span><button type="button" className="settings-reset" onClick={resetSettingsToDefaults}>Restore defaults</button></div>
               <div className="field-divider" />
               <label className="field-label" htmlFor="personality">Personality instructions</label><textarea id="personality" className="field-textarea" rows={5} value={settings.personality} onChange={(event) => setSettings((old) => ({ ...old, personality: event.target.value }))} placeholder="Tell AURA how to behave..." />
