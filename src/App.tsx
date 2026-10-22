@@ -180,7 +180,6 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   const [busy, setBusy] = useState(false);
   const requestAbortRef = useRef<AbortController | null>(null);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
-  const [revealedChars, setRevealedChars] = useState(0);
   const [error, setError] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [promptLibraryOpen, setPromptLibraryOpen] = useState(false);
@@ -723,7 +722,6 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
     };
     updateTargetChat([...nextMessages, assistantMessage]);
     setStreamingMessageId(assistantId);
-    setRevealedChars(0);
     setBusy(true);
     const controller = new AbortController();
     requestAbortRef.current = controller;
@@ -768,7 +766,6 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
           if (done) break;
           answer += decoder.decode(value, { stream: true });
           updateTargetChat([...nextMessages, { ...assistantMessage, content: answer }]);
-          setRevealedChars(answer.length);
         }
         answer += decoder.decode();
       } finally {
