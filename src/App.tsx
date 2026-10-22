@@ -358,7 +358,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   }, [allPrompts, promptSearch]);
 
   function usePromptTemplate(prompt: PromptTemplate) {
-    setDraft((current) => current.trim() ? current.trimEnd() + "\\n\\n" + prompt.prompt : prompt.prompt);
+    setDraft((current) => current.trim() ? current.trimEnd() + "\n\n" + prompt.prompt : prompt.prompt);
     setPromptLibraryOpen(false);
     setPromptSearch("");
     window.setTimeout(() => inputRef.current?.focus(), 50);
