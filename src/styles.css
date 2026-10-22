@@ -602,3 +602,13 @@ body{background:#070710;color:#f5f2ff}
 .project-save-action:hover{filter:brightness(1.08)}
 @media(max-width:720px){.active-project-picker{max-width:120px}.active-project-picker select{max-width:86px}}
 @media(max-width:520px){.active-project-picker{max-width:104px;padding:0 6px}.active-project-picker select{max-width:68px;font-size:9px}.project-editor-modal{width:calc(100vw - 16px);max-height:calc(100dvh - 18px);border-radius:13px}.project-editor-modal .modal-header{padding:17px 15px 14px}.project-editor-form{padding:16px 15px 17px}.project-editor-actions{flex-wrap:wrap}.project-editor-actions>span{display:none}.project-editor-actions button{flex:1}}
+
+
+/* Live response controls */
+.stop-generation-button{border-color:#d66a82!important;background:linear-gradient(115deg,#f1b4c2,#d96c86 60%,#a94465)!important;color:#230b13!important;box-shadow:0 5px 20px #d95f8138,inset 0 1px 0 #ffffff7a!important}
+.stop-generation-button:hover{filter:brightness(1.08);box-shadow:0 8px 25px #d95f8152!important}
+.stop-generation-square{width:10px;height:10px;border-radius:2px;background:#3c1020;box-shadow:0 0 0 3px #58192a18}
+.message-streaming{position:relative}
+.message-streaming:after{content:"";display:inline-block;width:5px;height:1em;margin-left:4px;vertical-align:-2px;border-radius:2px;background:#b9a1ff;animation:aura-stream-caret .8s steps(2,end) infinite}
+@keyframes aura-stream-caret{50%{opacity:0}}
+@media(prefers-reduced-motion:reduce){.message-streaming:after{animation:none}}
