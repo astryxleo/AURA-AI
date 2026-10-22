@@ -651,3 +651,64 @@ body{background:#070710;color:#f5f2ff}
 .account-action-notice button{display:grid;place-items:center;flex:0 0 auto;width:24px;height:24px;border:0;border-radius:6px;background:transparent;color:#c9b9ef;cursor:pointer}
 .account-security-note{line-height:1.65;margin:10px 0 14px}
 @media(max-width:420px){.account-action-grid{grid-template-columns:1fr}.account-action-grid button{min-height:39px}}
+
+
+/* AURA luxury scrollbar system */
+:root {
+  --scroll-track: #0b0c12;
+  --scroll-thumb: #393344;
+  --scroll-thumb-hover: #75639b;
+  --scroll-glow: rgba(182, 160, 255, .22);
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+  scrollbar-width: thin;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb {
+  min-height: 36px;
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #74648e 0%, #40364f 48%, #292733 100%) padding-box;
+  transition: background .2s ease, box-shadow .2s ease;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #c7b5ff 0%, #8d77bd 48%, #5b4b78 100%) padding-box;
+  box-shadow: inset 0 0 0 1px rgba(231, 222, 255, .16), 0 0 10px var(--scroll-glow);
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+.conversation,
+.chat-list,
+.prompt-library-content,
+.settings-modal,
+.project-editor-modal,
+.markdown-content pre,
+.markdown-content table {
+  scrollbar-width: thin;
+  scrollbar-color: #514460 transparent;
+}
+.conversation::-webkit-scrollbar-thumb,
+.chat-list::-webkit-scrollbar-thumb,
+.prompt-library-content::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #8a75ae 0%, #544567 52%, #302b3a 100%) padding-box;
+}
+.conversation::-webkit-scrollbar-thumb:hover,
+.chat-list::-webkit-scrollbar-thumb:hover,
+.prompt-library-content::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #d0c0ff 0%, #9b84cb 52%, #5f4b7c 100%) padding-box;
+  box-shadow: 0 0 12px rgba(182, 160, 255, .25);
+}
+@media (prefers-reduced-motion: reduce) {
+  *::-webkit-scrollbar-thumb { transition: none; }
+}
