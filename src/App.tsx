@@ -178,6 +178,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
   });
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const requestAbortRef = useRef<AbortController | null>(null);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [revealedChars, setRevealedChars] = useState(0);
   const [error, setError] = useState("");
@@ -336,23 +337,6 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
 
 
 
-  const streamingMessage = activeChat?.messages.find((message) => message.id === streamingMessageId);
-  useEffect(() => {
-    if (!streamingMessage) return;
-    const length = streamingMessage.content.length;
-    const step = Math.max(2, Math.ceil(length / 180));
-    const interval = window.setInterval(() => {
-      setRevealedChars((current) => {
-        const next = Math.min(length, current + step);
-        if (next >= length) {
-          window.clearInterval(interval);
-          window.setTimeout(() => setStreamingMessageId((id) => id === streamingMessage.id ? null : id), 120);
-        }
-        return next;
-      });
-    }, 18);
-    return () => window.clearInterval(interval);
-  }, [streamingMessageId, streamingMessage?.id, streamingMessage?.content]);
 
   const sortedChats = useMemo(() => [...chats].sort((a, b) => Number(pinnedChatIds.includes(b.id)) - Number(pinnedChatIds.includes(a.id)) || b.updatedAt - a.updatedAt), [chats, pinnedChatIds]);
   const filteredChats = useMemo(() => {
@@ -723,65 +707,105 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
     event?.preventDefault();
     const prompt = draft.trim();
     if (!prompt || busy || !activeChat) return;
+    const chatId = activeChat.id;
+    const currentChat = activeChat;
     setError("");
     setDraft("");
     const userMessage: Message = { id: newId(), role: "user", content: prompt, createdAt: Date.now() };
-    const nextMessages = [...activeChat.messages, userMessage];
-    const title = activeChat.messages.length === 0 ? prompt.slice(0, 42) + (prompt.length > 42 ? "…" : "") : activeChat.title;
-    updateActive(nextMessages, title);
+    const nextMessages = [...currentChat.messages, userMessage];
+    const title = currentChat.messages.length === 0 ? prompt.slice(0, 42) + (prompt.length > 42 ? "…" : "") : currentChat.title;
+    const assistantId = newId();
+    const assistantMessage: Message = { id: assistantId, role: "assistant", content: "", createdAt: Date.now() };
+    const updateTargetChat = (messages: Message[]) => {
+      setChats((previous) => previous.map((chat) => chat.id === chatId
+        ? { ...chat, messages, title, updatedAt: Date.now() }
+        : chat));
+    };
+    updateTargetChat([...nextMessages, assistantMessage]);
+    setStreamingMessageId(assistantId);
+    setRevealedChars(0);
     setBusy(true);
+    const controller = new AbortController();
+    requestAbortRef.current = controller;
+    let answer = "";
     try {
       const personalContext = settings.knowledge.trim()
         ? "\n\nPersonal knowledge notes (use when relevant; treat as user-provided context):\n" + settings.knowledge.trim()
         : "";
-      const activeProject = projects.find((project) => project.id === activeChat.projectId);
+      const activeProject = projects.find((project) => project.id === currentChat.projectId);
       const projectContext = activeProject ? "\n\nActive project: " + activeProject.name + (activeProject.description ? "\nProject goal: " + activeProject.description : "") + (activeProject.instructions ? "\nProject-specific instructions (use alongside the user's global preferences):\n" + activeProject.instructions : "") : "";
       const context = personalContext + projectContext + selectKnowledgeContext(prompt);
       const systemPrompt = settings.personality.trim() + context;
       const response = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Accept": "text/plain" },
+        signal: controller.signal,
         body: JSON.stringify({
           model: settings.model.trim() || "gemini-3.8-flash",
-          stream: false,
+          stream: true,
           messages: [
             { role: "system", content: systemPrompt },
             ...nextMessages.map(({ role, content }) => ({ role, content })),
           ],
         }),
       });
-      const data = await response.json().catch(() => ({})) as {
-        message?: { content?: string };
-        error?: string;
-        providerStatus?: number;
-      };
-      if (!response.ok || data.error) {
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({})) as { error?: string; providerStatus?: number };
         if (response.status === 429 || data.providerStatus === 429) {
           throw new Error("AURA is receiving too many requests right now. Please wait a moment and try again.");
         }
         if (response.status >= 500 || data.providerStatus === 503 || data.providerStatus === 502) {
           throw new Error("AURA couldn't respond just now. Please try again in a moment.");
         }
-        throw new Error("That message couldn't be processed. Please try again.");
+        throw new Error(data.error || "That message couldn't be processed. Please try again.");
       }
-      const answer = data.message?.content?.trim();
-      if (!answer) throw new Error("AURA couldn’t generate a reply just now. Please try again.");
-      const assistantMessage: Message = { id: newId(), role: "assistant", content: answer, createdAt: Date.now() };
-      setRevealedChars(0);
-      setStreamingMessageId(assistantMessage.id);
-      updateActive([...nextMessages, assistantMessage], title);
-      setConnection("online");
+      if (!response.body) throw new Error("AURA couldn't start the response. Please try again.");
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          answer += decoder.decode(value, { stream: true });
+          updateTargetChat([...nextMessages, { ...assistantMessage, content: answer }]);
+          setRevealedChars(answer.length);
+        }
+        answer += decoder.decode();
+      } finally {
+        reader.releaseLock();
+      }
+      if (answer.trim()) {
+        updateTargetChat([...nextMessages, { ...assistantMessage, content: answer.trim() }]);
+        setConnection("online");
+      } else if (!controller.signal.aborted) {
+        throw new Error("AURA couldn’t generate a reply just now. Please try again.");
+      } else {
+        updateTargetChat(nextMessages);
+      }
     } catch (caught) {
-      setConnection("offline");
-      const message = caught instanceof Error ? caught.message : "Unknown connection error";
-      setError(message.includes("Failed to fetch")
-        ? "AURA is having trouble connecting. Please try again in a moment."
-        : message);
-      updateActive(nextMessages, title);
+      const aborted = caught instanceof DOMException && caught.name === "AbortError";
+      if (aborted) {
+        if (answer.trim()) updateTargetChat([...nextMessages, { ...assistantMessage, content: answer.trim() }]);
+        else updateTargetChat(nextMessages);
+      } else {
+        setConnection("offline");
+        const message = caught instanceof Error ? caught.message : "AURA couldn't respond just now.";
+        setError(message.includes("Failed to fetch")
+          ? "AURA is having trouble connecting. Please try again in a moment."
+          : message);
+        if (answer.trim()) updateTargetChat([...nextMessages, { ...assistantMessage, content: answer.trim() }]);
+        else updateTargetChat(nextMessages);
+      }
     } finally {
+      if (requestAbortRef.current === controller) requestAbortRef.current = null;
+      setStreamingMessageId(null);
       setBusy(false);
       inputRef.current?.focus();
     }
+  }
+
+  function stopGeneration() {
+    requestAbortRef.current?.abort();
   }
 
   function retryLastMessage() {
@@ -932,7 +956,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
                   <div className={`message-avatar ${message.role}`}>{message.role === "assistant" ? <Sparkles size={17} /> : "Y"}</div>
                   <div className="message-body">
                     <div className="message-label"><span>{message.role === "assistant" ? "AURA" : "YOU"}</span><time dateTime={new Date(Number.isFinite(message.createdAt) && Math.abs(message.createdAt) <= 8640000000000000 ? message.createdAt : Date.now()).toISOString()}>{new Date(Number.isFinite(message.createdAt) && Math.abs(message.createdAt) <= 8640000000000000 ? message.createdAt : Date.now()).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</time></div>
-                    <div className={`message-content ${message.id === streamingMessageId ? "message-streaming" : ""}`}><MarkdownContent content={message.id === streamingMessageId ? message.content.slice(0, revealedChars) : message.content} /></div>
+                    <div className={`message-content ${message.id === streamingMessageId ? "message-streaming" : ""}`}><MarkdownContent content={message.content} /></div>
                     {message.id !== streamingMessageId && <div className="message-actions">
                       <button type="button" onClick={() => { void copyMessage(message.content); }} aria-label={message.role === "assistant" ? "Copy AURA response" : "Copy your message"} title="Copy message"><Copy size={13} /> Copy</button>
                       {message.role === "user" && <button type="button" disabled={busy} onClick={() => editUserMessage(message.id)} title="Edit and resend this message"><Pencil size={13} /> Edit</button>}
@@ -941,7 +965,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
                   </div>
                 </article>
               ))}
-              {busy && <article className="message-row assistant"><div className="message-avatar assistant"><Sparkles size={17} /></div><div className="message-body"><div className="message-label">AURA</div><div className="typing"><span /><span /><span /> <small>Thinking</small></div></div></article>}
+              {busy && activeChat?.messages.every((message) => message.id !== streamingMessageId) && <article className="message-row assistant"><div className="message-avatar assistant"><Sparkles size={17} /></div><div className="message-body"><div className="message-label">AURA</div><div className="typing"><span /><span /><span /> <small>Starting</small></div></div></article>}
               <div className="end-spacer" />
             </div>
           )}
@@ -952,7 +976,7 @@ export default function App({ userId, userEmail, onSignOut }: { userId: string; 
           {error && <div className="error-banner"><span>{error}</span><div className="error-actions">{activeChat?.messages[activeChat.messages.length - 1]?.role === "user" && <button type="button" className="retry-message" disabled={busy} onClick={retryLastMessage}><Zap size={13} /> Retry message</button>}<button aria-label="Dismiss error" onClick={() => setError("")}><X size={15} /></button></div></div>}
           <form className="composer" onSubmit={sendMessage}>
             <textarea ref={inputRef} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={onKeyDown} placeholder="Message AURA... (Enter to send, Shift + Enter for a new line)" rows={1} aria-label="Message AURA" />
-            <div className="composer-bottom"><div className="composer-bottom-tools"><div className="composer-hint"><span className="composer-spark"><Sparkles size={13} /></span><span>Curious by design.</span></div><button className="prompt-library-trigger" type="button" onClick={() => setPromptLibraryOpen(true)} title="Open reusable prompt library"><BookOpen size={14} /><span>Prompt library</span></button></div><button className="send-button" type="submit" disabled={!draft.trim() || busy} aria-label="Send message">{busy ? <span className="send-loader" /> : <Send size={17} />}<span>Send</span></button></div>
+            <div className="composer-bottom"><div className="composer-bottom-tools"><div className="composer-hint"><span className="composer-spark"><Sparkles size={13} /></span><span>Curious by design.</span></div><button className="prompt-library-trigger" type="button" onClick={() => setPromptLibraryOpen(true)} title="Open reusable prompt library"><BookOpen size={14} /><span>Prompt library</span></button></div>{busy ? <button className="send-button stop-generation-button" type="button" onClick={stopGeneration} aria-label="Stop generation"><span className="stop-generation-square" /><span>Stop</span></button> : <button className="send-button" type="submit" disabled={!draft.trim()} aria-label="Send message"><Send size={17} /><span>Send</span></button>}</div>
           </form>
           <p className="disclaimer">AURA can make mistakes. Verify important information. Your chats sync to your account.</p>
         </div>
